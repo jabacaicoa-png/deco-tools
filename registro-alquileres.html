@@ -31,6 +31,11 @@
   }
   .side-btn .icon{font-size:19px;}
   .side-btn.active{color:#fff; background:rgba(255,255,255,.06); border-left-color:var(--orange);}
+  .side-btn.side-btn-action{
+    color:#fff; background:var(--orange); margin:0 6px 12px; border-radius:8px;
+    border-left:none; padding:12px 2px;
+  }
+  .side-btn.side-btn-action .icon{font-size:20px;}
 
   main{flex:1; min-width:0; max-width:800px; margin:0 auto; padding:14px;}
   .view{display:none;} .view.active{display:block;}
@@ -208,6 +213,7 @@
 
 <div class="app-shell">
   <nav class="sidebar">
+    <div class="side-btn side-btn-action" onclick="openNewModal()"><span class="icon">➕</span>Nuevo<br>alquiler</div>
     <div class="side-btn active" data-tab="alquileres" onclick="setTab('alquileres')"><span class="icon">📋</span>Alquileres</div>
     <div class="side-btn" data-tab="precios" onclick="setTab('precios')"><span class="icon">💲</span>Precios/Stock</div>
     <div class="side-btn" data-tab="calendario" onclick="setTab('calendario')"><span class="icon">📅</span>Calendario</div>
@@ -225,8 +231,7 @@
       <div class="card"><div class="num" id="statMes">0</div><div class="lbl">Este mes</div></div>
     </div>
     <div class="actions-bar">
-      <button class="btn btn-primary" onclick="openNewModal()">+ Nuevo alquiler</button>
-      <button class="btn btn-outline" onclick="exportarRecordatoriosICS()" title="Descargar recordatorios para tu calendario del celular">📅 Recordatorios</button>
+      <button class="btn btn-outline btn-block" onclick="exportarRecordatoriosICS()" title="Descargar recordatorios para tu calendario del celular">📅 Recordatorios</button>
     </div>
     <input type="text" class="search" id="searchInput" placeholder="Buscar por cliente, DNI o producto..." oninput="render()">
     <div class="filters">
