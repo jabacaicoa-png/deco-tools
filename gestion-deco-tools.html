@@ -255,6 +255,16 @@
     <div class="filter-side-btn" data-f="devuelto" onclick="setFilter('devuelto')">Devueltos</div>
   </nav>
 
+  <nav class="sidebar-filters hidden" id="precioActionsSidebar">
+    <div class="sf-title">Acciones</div>
+    <div class="filter-side-btn" onclick="openAdecuacionModal()">% Adecuación</div>
+    <div class="filter-side-btn" onclick="openProductModal(null)">+ Nuevo producto</div>
+    <div class="filter-side-btn" onclick="restablecerTodoOriginal()">↺ Restablecer todo</div>
+    <div class="filter-side-btn" onclick="document.getElementById('excelFileInput').click()">📥 Importar Excel</div>
+    <div class="filter-side-btn" onclick="descargarPlantillaExcel()">📤 Descargar plantilla</div>
+    <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarExcel(this.files[0])">
+  </nav>
+
 <main>
 
   <!-- ================= VISTA ALQUILERES ================= -->
@@ -270,19 +280,6 @@
 
   <!-- ================= VISTA PRECIOS / STOCK ================= -->
   <div class="view" id="view-precios">
-    <div class="actions-bar">
-      <button class="btn btn-orange" onclick="openAdecuacionModal()">% Adecuación de precios</button>
-      <button class="btn btn-outline" onclick="openProductModal(null)">+ Nuevo producto</button>
-    </div>
-    <div class="actions-bar">
-      <button class="btn btn-outline btn-block" onclick="restablecerTodoOriginal()">↺ Restablecer todo el catálogo a precio original</button>
-    </div>
-    <div class="actions-bar">
-      <button class="btn btn-outline btn-block" onclick="document.getElementById('excelFileInput').click()">📥 Importar desde Excel</button>
-      <button class="btn btn-outline btn-block" onclick="descargarPlantillaExcel()">📤 Descargar plantilla</button>
-      <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarExcel(this.files[0])">
-    </div>
-
     <div class="section-title">Regla de descuento por tramo</div>
     <div class="rule-box">
       <p class="rule-hint">Define cuánto más barato (respecto del precio de 1 día) queda cada tramo. Se aplica a todo el catálogo con un solo toque, sin cargar producto por producto.</p>
@@ -1055,6 +1052,7 @@ function setTab(tab){
   document.querySelectorAll(".view").forEach(el=>el.classList.remove("active"));
   document.getElementById("view-"+tab).classList.add("active");
   document.getElementById("filterSidebar").classList.toggle("hidden", tab!=="alquileres");
+  document.getElementById("precioActionsSidebar").classList.toggle("hidden", tab!=="precios");
   if(tab==="precios") renderPrecios();
   if(tab==="historial") renderHistorialAdecuaciones();
   if(tab==="calendario") renderCalendario();
