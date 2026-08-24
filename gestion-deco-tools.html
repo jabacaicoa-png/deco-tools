@@ -112,6 +112,7 @@
   table.price-table tr:last-child td{border-bottom:none;}
   table.price-table tr:nth-child(even) td{background:#FAFAF9;}
   table.price-table .pnombre{font-weight:700; color:var(--navy); white-space:nowrap;}
+  table.price-table .psku{font-family:monospace; font-weight:700; color:var(--orange); white-space:nowrap;}
   table.price-table .pstock{font-weight:700; color:var(--green);}
   table.price-table .pstock.agotado{color:var(--red);}
   table.price-table .picons{white-space:nowrap; text-align:center;}
@@ -431,6 +432,10 @@
     <button class="close-x" onclick="closeProductModal()">×</button>
     <h2 id="productModalTitle">Nuevo producto</h2>
     <input type="hidden" id="pEditId">
+    <div class="field" id="pSkuField" style="display:none;">
+      <label>SKU</label>
+      <input type="text" id="pSku" disabled style="background:#f2f1ef; color:var(--gray); font-weight:700;">
+    </div>
     <div class="field">
       <label>Nombre</label>
       <input type="text" id="pNombre" placeholder="Ej: Compresor solo">
@@ -594,30 +599,56 @@ const WIZARD_LABELS = { 1:"Datos del cliente", 2:"Productos alquilados", 3:"Fech
 /* ============ SEED INICIAL ============ */
 function seedProducts(){
   const base = [
-    { id:"p1", nombre:"Compresor solo", precio1:25000, precio3:60000, precio5:85000, precio7:115000, stock:1 },
-    { id:"p2", nombre:"Compresor + pistola de pintar", precio1:32000, precio3:76000, precio5:110000, precio7:148000, stock:1 },
-    { id:"p3", nombre:"Compresor + pistola + accesorios", precio1:38000, precio3:90000, precio5:130000, precio7:175000, stock:1 },
-    { id:"p4", nombre:"Sierra sensitiva", precio1:15000, precio3:35000, precio5:50000, precio7:70000, stock:1 },
-    { id:"p5", nombre:"Soldadora inverter (electrodo)", precio1:15000, precio3:36000, precio5:52000, precio7:70000, stock:1 },
-    { id:"p6", nombre:"Soldadora + máscara de soldar", precio1:17000, precio3:40000, precio5:58000, precio7:80000, stock:1 },
+    { id:"p1", sku:"DT-001", nombre:"Compresor solo", precio1:25000, precio3:60000, precio5:85000, precio7:115000, stock:1 },
+    { id:"p2", sku:"DT-002", nombre:"Compresor + pistola de pintar", precio1:32000, precio3:76000, precio5:110000, precio7:148000, stock:1 },
+    { id:"p3", sku:"DT-003", nombre:"Compresor + pistola + accesorios", precio1:38000, precio3:90000, precio5:130000, precio7:175000, stock:1 },
+    { id:"p4", sku:"DT-004", nombre:"Sierra sensitiva", precio1:15000, precio3:35000, precio5:50000, precio7:70000, stock:1 },
+    { id:"p5", sku:"DT-005", nombre:"Soldadora inverter (electrodo)", precio1:15000, precio3:36000, precio5:52000, precio7:70000, stock:1 },
+    { id:"p6", sku:"DT-006", nombre:"Soldadora + máscara de soldar", precio1:17000, precio3:40000, precio5:58000, precio7:80000, stock:1 },
   ];
   base.forEach(p=>{ p.precioBase1=p.precio1; p.precioBase3=p.precio3; p.precioBase5=p.precio5; p.precioBase7=p.precio7; });
   return base;
 }
 function defaultTierDiscounts(){ return { d3:15, d5:20, d7:25 }; }
+function nextSku(){
+  db.skuCounter = (db.skuCounter||0) + 1;
+  return "DT-" + String(db.skuCounter).padStart(3,"0");
+}
 
 /* ============ PERSISTENCIA LOCAL ============ */
+function precioTramoDesdeRegla(precio1, dias, pctDescuento){
+  return Math.round(Number(precio1) * dias * (1 - pctDescuento/100) / 100) * 100;
+}
 function normalizeProducts(){
+  const td = db.tierDiscounts || defaultTierDiscounts();
+  if(db.skuCounter===undefined) db.skuCounter = 0;
+  const skusExistentes = new Set(db.products.map(p=>p.sku).filter(Boolean));
+  skusExistentes.forEach(sku=>{
+    const m = /^DT-(\d+)$/.exec(sku);
+    if(m) db.skuCounter = Math.max(db.skuCounter, Number(m[1]));
+  });
   db.products.forEach(p=>{
     p.precio1 = Number(p.precio1)||0;
     p.precio3 = Number(p.precio3)||0;
     p.precio5 = Number(p.precio5)||0;
     p.precio7 = Number(p.precio7)||0;
     p.stock = Number(p.stock)||0;
+    // si algún tramo quedó en $0 pero hay precio de 1 día, se completa con la regla vigente
+    // (evita productos "rotos" por datos cargados antes de que existiera ese tramo)
+    if(!p.precio3 && p.precio1) p.precio3 = precioTramoDesdeRegla(p.precio1, 3, td.d3);
+    if(!p.precio5 && p.precio1) p.precio5 = precioTramoDesdeRegla(p.precio1, 5, td.d5);
+    if(!p.precio7 && p.precio1) p.precio7 = precioTramoDesdeRegla(p.precio1, 7, td.d7);
     if(p.precioBase1===undefined) p.precioBase1 = p.precio1;
     if(p.precioBase3===undefined) p.precioBase3 = p.precio3;
     if(p.precioBase5===undefined) p.precioBase5 = p.precio5;
     if(p.precioBase7===undefined) p.precioBase7 = p.precio7;
+    // asigna SKU a productos que todavía no tienen (migración de catálogos viejos)
+    if(!p.sku){
+      let nuevo;
+      do{ nuevo = nextSku(); }while(skusExistentes.has(nuevo));
+      p.sku = nuevo;
+      skusExistentes.add(nuevo);
+    }
   });
 }
 function loadLocal(){
@@ -1326,6 +1357,7 @@ function renderPrecios(){
     const disp = disponible(p.id, null);
     return `
     <tr>
+      <td class="psku">${escapeHtml(p.sku||"-")}</td>
       <td class="pnombre">${escapeHtml(p.nombre)}</td>
       <td class="num">${fmtMoney(p.precio1)}</td>
       <td class="num">${fmtMoney(p.precio3)}</td>
@@ -1343,7 +1375,7 @@ function renderPrecios(){
     <div class="price-table-wrap">
       <table class="price-table">
         <thead><tr>
-          <th>Producto</th><th class="num">1 día</th><th class="num">3 días</th><th class="num">5 días</th><th class="num">7 días</th><th class="num">Disp./Stock</th><th></th>
+          <th>SKU</th><th>Producto</th><th class="num">1 día</th><th class="num">3 días</th><th class="num">5 días</th><th class="num">7 días</th><th class="num">Disp./Stock</th><th></th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -1419,9 +1451,10 @@ function aplicarReglaTramos(){
 }
 
 /* ============ IMPORTAR / EXPORTAR CATÁLOGO EN EXCEL ============ */
-const EXCEL_HEADERS = ["Nombre","Precio 1 día","Precio 3 días","Precio 5 días","Precio 7 días","Stock total"];
+const EXCEL_HEADERS = ["SKU","Nombre","Precio 1 día","Precio 3 días","Precio 5 días","Precio 7 días","Stock total"];
 function descargarPlantillaExcel(){
   const rows = db.products.map(p=>({
+    "SKU": p.sku,
     "Nombre": p.nombre,
     "Precio 1 día": p.precio1,
     "Precio 3 días": p.precio3,
@@ -1430,7 +1463,7 @@ function descargarPlantillaExcel(){
     "Stock total": p.stock,
   }));
   const ws = XLSX.utils.json_to_sheet(rows, { header: EXCEL_HEADERS });
-  ws["!cols"] = [{wch:32},{wch:12},{wch:12},{wch:12},{wch:12},{wch:10}];
+  ws["!cols"] = [{wch:10},{wch:32},{wch:12},{wch:12},{wch:12},{wch:12},{wch:10}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Catálogo");
   XLSX.writeFile(wb, "deco-tools-catalogo.xlsx");
@@ -1445,32 +1478,63 @@ function importarExcel(file){
       const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
       if(rows.length===0){ alert("El archivo no tiene filas para importar."); return; }
 
+      const td = db.tierDiscounts || defaultTierDiscounts();
+      const catalogoNuevo = [];
+      const idsUsados = new Set();
       let creados = 0, actualizados = 0;
+
       rows.forEach(row=>{
         const nombre = String(row["Nombre"]||"").trim();
         if(!nombre) return;
+        const skuFila = String(row["SKU"]||"").trim();
         const precio1 = Number(row["Precio 1 día"])||0;
-        const precio3 = Number(row["Precio 3 días"])||0;
-        const precio5 = Number(row["Precio 5 días"])||0;
-        const precio7 = Number(row["Precio 7 días"])||0;
+        let precio3 = Number(row["Precio 3 días"])||0;
+        let precio5 = Number(row["Precio 5 días"])||0;
+        let precio7 = Number(row["Precio 7 días"])||0;
         const stock = Number(row["Stock total"])||0;
 
-        const existente = db.products.find(p=>p.nombre.trim().toLowerCase()===nombre.toLowerCase());
+        // si vino sin valor (fórmula sin caché, celda vacía, etc.), se completa con la regla de tramos vigente
+        if(!precio3 && precio1) precio3 = precioTramoDesdeRegla(precio1, 3, td.d3);
+        if(!precio5 && precio1) precio5 = precioTramoDesdeRegla(precio1, 5, td.d5);
+        if(!precio7 && precio1) precio7 = precioTramoDesdeRegla(precio1, 7, td.d7);
+
+        // emparejamiento: primero por SKU (permite renombrar sin duplicar); si no trae SKU, por nombre exacto
+        let existente = null;
+        if(skuFila) existente = db.products.find(p=>p.sku===skuFila);
+        if(!existente) existente = db.products.find(p=>p.nombre.trim().toLowerCase()===nombre.toLowerCase());
+
         if(existente){
-          existente.precio1=precio1; existente.precio3=precio3; existente.precio5=precio5; existente.precio7=precio7; existente.stock=stock;
+          existente.nombre=nombre; existente.precio1=precio1; existente.precio3=precio3; existente.precio5=precio5; existente.precio7=precio7; existente.stock=stock;
+          catalogoNuevo.push(existente);
+          idsUsados.add(existente.id);
           actualizados++;
         } else {
-          db.products.push({
-            id:"p"+Date.now()+Math.floor(Math.random()*1000),
+          const nuevo = {
+            id:"p"+Date.now()+Math.floor(Math.random()*100000),
+            sku: nextSku(),
             nombre, precio1, precio3, precio5, precio7, stock,
             precioBase1:precio1, precioBase3:precio3, precioBase5:precio5, precioBase7:precio7,
-          });
+          };
+          catalogoNuevo.push(nuevo);
+          idsUsados.add(nuevo.id);
           creados++;
         }
       });
-      db.priceHistory.push({ tipo:"reset_producto", fecha: todayStr(), nota:`Importación desde Excel: ${actualizados} actualizado(s), ${creados} nuevo(s)` });
+
+      // productos que ya no vienen en el excel: se sacan del catálogo, salvo que tengan pedidos activos
+      let mantenidos = 0, eliminados = 0;
+      db.products.forEach(p=>{
+        if(idsUsados.has(p.id)) return;
+        const enUso = db.rentals.some(r=>!r.devuelto && r.items.some(i=>i.productId===p.id));
+        if(enUso){ catalogoNuevo.push(p); mantenidos++; }
+        else { eliminados++; }
+      });
+
+      db.products = catalogoNuevo;
+      normalizeProducts();
+      db.priceHistory.push({ tipo:"reset_producto", fecha: todayStr(), nota:`Importación desde Excel: ${actualizados} actualizado(s), ${creados} nuevo(s), ${eliminados} eliminado(s), ${mantenidos} mantenido(s) por tener pedidos activos` });
       saveLocal(); renderPrecios(); autoSyncIfConnected();
-      alert(`Importación completa: ${actualizados} producto(s) actualizado(s), ${creados} nuevo(s).`);
+      alert(`Importación completa:\n${actualizados} actualizado(s)\n${creados} nuevo(s)\n${eliminados} eliminado(s) (no estaban en el archivo)${mantenidos ? `\n${mantenidos} mantenido(s) porque tienen pedidos activos` : ""}`);
     }catch(err){
       console.error(err);
       alert("No se pudo leer el archivo. Verificá que sea un Excel (.xlsx) con las columnas: " + EXCEL_HEADERS.join(", "));
@@ -1485,6 +1549,8 @@ function openProductModal(id){
   if(id){
     const p = db.products.find(x=>x.id===id);
     document.getElementById("productModalTitle").textContent = "Editar producto";
+    document.getElementById("pSkuField").style.display = "block";
+    document.getElementById("pSku").value = p.sku||"";
     document.getElementById("pNombre").value = p.nombre;
     document.getElementById("pPrecio1").value = p.precio1;
     document.getElementById("pPrecio3").value = p.precio3;
@@ -1493,6 +1559,7 @@ function openProductModal(id){
     document.getElementById("pStock").value = p.stock;
   } else {
     document.getElementById("productModalTitle").textContent = "Nuevo producto";
+    document.getElementById("pSkuField").style.display = "none";
     ["pNombre","pPrecio1","pPrecio3","pPrecio5","pPrecio7"].forEach(id=>document.getElementById(id).value="");
     document.getElementById("pStock").value = 1;
   }
@@ -1515,7 +1582,7 @@ function saveProduct(){
     const idx = db.products.findIndex(x=>x.id===id);
     if(idx>=0) db.products[idx] = {...db.products[idx], ...data};
   } else {
-    db.products.push({ id:"p"+Date.now(), ...data, precioBase1:data.precio1, precioBase3:data.precio3, precioBase5:data.precio5, precioBase7:data.precio7 });
+    db.products.push({ id:"p"+Date.now(), sku: nextSku(), ...data, precioBase1:data.precio1, precioBase3:data.precio3, precioBase5:data.precio5, precioBase7:data.precio7 });
   }
   saveLocal(); closeProductModal(); renderPrecios(); autoSyncIfConnected();
 }
