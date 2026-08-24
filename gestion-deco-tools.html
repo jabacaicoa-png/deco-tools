@@ -628,7 +628,8 @@ function precioTramoDesdeRegla(precio1, dias, pctDescuento){
   return Math.round(Number(precio1) * dias * (1 - pctDescuento/100) / 100) * 100;
 }
 function normalizeProducts(){
-  const td = db.tierDiscounts || defaultTierDiscounts();
+  if(!db.tierDiscounts) db.tierDiscounts = defaultTierDiscounts();
+  const td = db.tierDiscounts;
   if(db.skuCounter===undefined) db.skuCounter = 0;
   const skusExistentes = new Set(db.products.map(p=>p.sku).filter(Boolean));
   skusExistentes.forEach(sku=>{
@@ -1794,7 +1795,14 @@ async function driveLoadThenMerge(){
         if(remote && remote.rentals){
           const localTs = localStorage.getItem(STORAGE_KEY+"_ts") || "";
           if(!db.rentals.length || (remote.updatedAt && remote.updatedAt > localTs)){
-            db = { products: remote.products||seedProducts(), clients: remote.clients||[], rentals: remote.rentals||[], priceHistory: remote.priceHistory||[] };
+            db = {
+              products: remote.products||seedProducts(),
+              clients: remote.clients||[],
+              rentals: remote.rentals||[],
+              priceHistory: remote.priceHistory||[],
+              tierDiscounts: remote.tierDiscounts || defaultTierDiscounts(),
+              skuCounter: remote.skuCounter || 0,
+            };
             normalizeProducts();
             saveLocal();
           }
