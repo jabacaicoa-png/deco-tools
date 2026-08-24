@@ -113,6 +113,7 @@
   table.price-table tr:nth-child(even) td{background:#FAFAF9;}
   table.price-table .pnombre{font-weight:700; color:var(--navy); white-space:nowrap;}
   table.price-table .psku{font-family:monospace; font-weight:700; color:var(--orange); white-space:nowrap;}
+  table.price-table tr.row-descontinuado td{opacity:.5;}
   table.price-table .pstock{font-weight:700; color:var(--green);}
   table.price-table .pstock.agotado{color:var(--red);}
   table.price-table .picons{white-space:nowrap; text-align:center;}
@@ -1118,7 +1119,8 @@ function setFilter(f){
 /* ============ MODAL ALQUILER ============ */
 function renderProdCheckList(selectedItems, excludeRentalId){
   const cont = document.getElementById("prodCheckList");
-  cont.innerHTML = db.products.map(p=>{
+  const productosVisibles = db.products.filter(p => !p.descontinuado || (selectedItems||[]).some(i=>i.productId===p.id));
+  cont.innerHTML = productosVisibles.map(p=>{
     const sel = (selectedItems||[]).find(i=>i.productId===p.id);
     const disp = disponible(p.id, excludeRentalId) + (sel? sel.cantidad : 0);
     return `
@@ -1356,9 +1358,9 @@ function renderPrecios(){
   const rows = db.products.map(p=>{
     const disp = disponible(p.id, null);
     return `
-    <tr>
+    <tr class="${p.descontinuado ? 'row-descontinuado' : ''}">
       <td class="psku">${escapeHtml(p.sku||"-")}</td>
-      <td class="pnombre">${escapeHtml(p.nombre)}</td>
+      <td class="pnombre">${escapeHtml(p.nombre)}${p.descontinuado ? ' <span class="badge devuelto" style="font-size:9px;">Descontinuado</span>' : ''}</td>
       <td class="num">${fmtMoney(p.precio1)}</td>
       <td class="num">${fmtMoney(p.precio3)}</td>
       <td class="num">${fmtMoney(p.precio5)}</td>
@@ -1367,6 +1369,7 @@ function renderPrecios(){
       <td class="picons">
         <button class="picon-btn" title="Editar" onclick="openProductModal('${p.id}')">✏️</button>
         <button class="picon-btn" title="Volver al precio original" onclick="restablecerPrecioOriginal('${p.id}')">↺</button>
+        <button class="picon-btn" title="${p.descontinuado ? 'Reactivar' : 'Descontinuar'}" onclick="toggleDescontinuarProducto('${p.id}')">${p.descontinuado ? '▶️' : '⏸️'}</button>
         <button class="picon-btn" title="Borrar" onclick="deleteProduct('${p.id}')">🗑️</button>
       </td>
     </tr>`;
@@ -1521,20 +1524,30 @@ function importarExcel(file){
         }
       });
 
-      // productos que ya no vienen en el excel: se sacan del catálogo, salvo que tengan pedidos activos
-      let mantenidos = 0, eliminados = 0;
+      // productos que ya no vienen en el excel:
+      // - si tienen un pedido ACTIVO: se mantienen tal cual (no se puede tocar mientras está en la calle)
+      // - si tienen historial (pedidos ya devueltos) pero ninguno activo: se descontinúan (no se ofrecen más, pero no se pierde el historial)
+      // - si nunca tuvieron ningún pedido: se eliminan directamente
+      let mantenidos = 0, descontinuados = 0, eliminados = 0;
       db.products.forEach(p=>{
         if(idsUsados.has(p.id)) return;
         const enUso = db.rentals.some(r=>!r.devuelto && r.items.some(i=>i.productId===p.id));
-        if(enUso){ catalogoNuevo.push(p); mantenidos++; }
-        else { eliminados++; }
+        const tieneHistorial = db.rentals.some(r=>r.items.some(i=>i.productId===p.id));
+        if(enUso){
+          catalogoNuevo.push(p); mantenidos++;
+        } else if(tieneHistorial){
+          p.descontinuado = true;
+          catalogoNuevo.push(p); descontinuados++;
+        } else {
+          eliminados++;
+        }
       });
 
       db.products = catalogoNuevo;
       normalizeProducts();
-      db.priceHistory.push({ tipo:"reset_producto", fecha: todayStr(), nota:`Importación desde Excel: ${actualizados} actualizado(s), ${creados} nuevo(s), ${eliminados} eliminado(s), ${mantenidos} mantenido(s) por tener pedidos activos` });
+      db.priceHistory.push({ tipo:"reset_producto", fecha: todayStr(), nota:`Importación desde Excel: ${actualizados} actualizado(s), ${creados} nuevo(s), ${eliminados} eliminado(s), ${descontinuados} descontinuado(s), ${mantenidos} mantenido(s) por tener pedidos activos` });
       saveLocal(); renderPrecios(); autoSyncIfConnected();
-      alert(`Importación completa:\n${actualizados} actualizado(s)\n${creados} nuevo(s)\n${eliminados} eliminado(s) (no estaban en el archivo)${mantenidos ? `\n${mantenidos} mantenido(s) porque tienen pedidos activos` : ""}`);
+      alert(`Importación completa:\n${actualizados} actualizado(s)\n${creados} nuevo(s)\n${eliminados} eliminado(s) (sin ningún pedido histórico)${descontinuados ? `\n${descontinuados} descontinuado(s) (tenían historial, ya no se ofrecen pero se conservan)` : ""}${mantenidos ? `\n${mantenidos} mantenido(s) porque tienen pedidos activos` : ""}`);
     }catch(err){
       console.error(err);
       alert("No se pudo leer el archivo. Verificá que sea un Excel (.xlsx) con las columnas: " + EXCEL_HEADERS.join(", "));
@@ -1585,6 +1598,12 @@ function saveProduct(){
     db.products.push({ id:"p"+Date.now(), sku: nextSku(), ...data, precioBase1:data.precio1, precioBase3:data.precio3, precioBase5:data.precio5, precioBase7:data.precio7 });
   }
   saveLocal(); closeProductModal(); renderPrecios(); autoSyncIfConnected();
+}
+function toggleDescontinuarProducto(id){
+  const p = db.products.find(x=>x.id===id);
+  if(!p) return;
+  p.descontinuado = !p.descontinuado;
+  saveLocal(); renderPrecios(); autoSyncIfConnected();
 }
 function deleteProduct(id){
   const enUso = db.rentals.some(r=>!r.devuelto && r.items.some(i=>i.productId===id));
