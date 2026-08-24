@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deco-Tools · Gestión de Alquileres</title>
+<style>
+  :root{
+    --navy:#1B3A5C; --navy-dark:#122A44; --orange:#E8622C; --gray:#6B6B70;
+    --lightgray:#F2F1EF; --red:#C0392B; --green:#2E8B57; --white:#fff;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+    background:var(--lightgray); color:#222; padding-bottom:70px;}
+  header{background:var(--navy); color:#fff; padding:14px 18px; position:sticky; top:0; z-index:50; box-shadow:0 2px 6px rgba(0,0,0,.15);}
+  header .top-row{display:flex; justify-content:space-between; align-items:center;}
+  header h1{font-size:18px; margin:0;} header h1 span{color:var(--orange);}
+  header .sub{font-size:11px; color:#cdd6de; margin-top:2px;}
+  .sync-btn{background:var(--orange); color:#fff; border:none; border-radius:6px; padding:7px 10px; font-size:11px; font-weight:600; cursor:pointer;}
+  .sync-btn.syncing{opacity:.6;}
+
+  .app-shell{display:flex; align-items:flex-start;}
+  .sidebar{
+    width:70px; flex-shrink:0; background:var(--navy-dark); min-height:calc(100vh - 66px);
+    display:flex; flex-direction:column; padding-top:8px;
+  }
+  .side-btn{
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:12px 2px; cursor:pointer; color:#8fa2b5; font-size:9.5px; font-weight:600;
+    border-left:3px solid transparent; text-align:center; line-height:1.15;
+  }
+  .side-btn .icon{font-size:19px;}
+  .side-btn.active{color:#fff; background:rgba(255,255,255,.06); border-left-color:var(--orange);}
+
+  main{flex:1; min-width:0; max-width:800px; margin:0 auto; padding:14px;}
+  .view{display:none;} .view.active{display:block;}
+
+  .cards{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px;}
+  .card{background:#fff; border-radius:10px; padding:10px 8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  .card .num{font-size:20px; font-weight:700; color:var(--navy);} .card.alert .num{color:var(--red);}
+  .card .lbl{font-size:10px; color:var(--gray); margin-top:2px;}
+
+  .btn{border:none; border-radius:8px; padding:10px 14px; font-size:13px; font-weight:600; cursor:pointer;}
+  .btn-primary{background:var(--navy); color:#fff;}
+  .btn-orange{background:var(--orange); color:#fff;}
+  .btn-outline{background:#fff; color:var(--navy); border:1px solid var(--navy);}
+  .btn-block{width:100%;}
+  .actions-bar{display:flex; gap:8px; margin-bottom:12px;}
+  .actions-bar .btn{flex:1;}
+
+  .filters{display:flex; gap:6px; margin-bottom:12px; overflow-x:auto; padding-bottom:2px;}
+  .filter-chip{border:1px solid #d8d7d4; background:#fff; border-radius:20px; padding:6px 12px; font-size:12px; white-space:nowrap; cursor:pointer; color:var(--gray);}
+  .filter-chip.active{background:var(--navy); color:#fff; border-color:var(--navy);}
+  .search{width:100%; padding:10px 12px; border-radius:8px; border:1px solid #d8d7d4; font-size:14px; margin-bottom:12px;}
+
+  .rental{background:#fff; border-radius:10px; padding:12px 14px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,.08); border-left:5px solid var(--navy);}
+  .rental.atrasado{border-left-color:var(--red);} .rental.devuelto{border-left-color:var(--green); opacity:.75;}
+  .rental .row1{display:flex; justify-content:space-between; align-items:flex-start;}
+  .rental .cliente{font-weight:700; font-size:15px; color:var(--navy);}
+  .rental .clienteN{font-size:11px; color:var(--gray); font-weight:400;}
+  .rental .equipo{font-size:13px; color:#333; margin-top:2px;}
+  .badge{font-size:10px; font-weight:700; padding:3px 8px; border-radius:12px; color:#fff; white-space:nowrap; margin-left:6px;}
+  .badge.activo{background:var(--navy);} .badge.atrasado{background:var(--red);} .badge.devuelto{background:var(--green);}
+  .rental .meta{font-size:12px; color:var(--gray); margin-top:8px; display:flex; flex-wrap:wrap; gap:10px;}
+  .rental .meta b{color:#333;}
+  .rental .btns{display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;}
+  .mini-btn{border:none; border-radius:6px; padding:6px 10px; font-size:11px; font-weight:600; cursor:pointer;}
+  .mini-btn.devolver{background:var(--green); color:#fff;}
+  .mini-btn.editar{background:var(--lightgray); color:var(--navy); border:1px solid #d8d7d4;}
+  .mini-btn.borrar{background:#fff; color:var(--red); border:1px solid var(--red);}
+  .empty{text-align:center; color:var(--gray); font-size:13px; padding:30px 10px;}
+
+  /* Recordatorios */
+  .reminders{margin-bottom:14px;}
+  .reminder-card{
+    background:#FFF4E8; border:1px solid var(--orange); border-radius:10px;
+    padding:10px 12px; margin-bottom:8px;
+  }
+  .reminder-card .rtitle{font-size:12px; font-weight:700; color:var(--orange); margin-bottom:4px;}
+  .reminder-card .rcliente{font-size:14px; font-weight:700; color:var(--navy);}
+  .reminder-card .requipo{font-size:12px; color:#333; margin:2px 0 8px;}
+  .reminder-card .rbtns{display:flex; gap:6px;}
+  .rbtn{border:none; border-radius:6px; padding:6px 10px; font-size:11px; font-weight:600; cursor:pointer; text-decoration:none; display:inline-block;}
+  .rbtn.call{background:var(--navy); color:#fff;}
+  .rbtn.wa{background:#25D366; color:#fff;}
+
+  /* Precios tab */
+  .section-title{font-size:15px; font-weight:700; color:var(--navy); margin:18px 0 10px; display:flex; justify-content:space-between; align-items:center;}
+  .prod-card{background:#fff; border-radius:10px; padding:12px 14px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  .prod-card .row1{display:flex; justify-content:space-between; align-items:center;}
+  .prod-card .nombre{font-weight:700; color:var(--navy); font-size:14px;}
+  .prod-card .stock{font-size:11px; color:var(--gray);}
+  .prod-card .stock b{color:var(--green);}
+  .prod-card .stock.agotado b{color:var(--red);}
+  .prod-precios{display:flex; gap:14px; margin-top:8px; font-size:12px; color:#333;}
+  .prod-precios div b{display:block; color:var(--gray); font-weight:400; font-size:10px;}
+  .prod-card .btns{margin-top:8px; display:flex; gap:6px;}
+
+  .history-item{background:#fff; border-radius:8px; padding:10px 12px; margin-bottom:6px; font-size:12px; box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  .history-item .pct{font-weight:700; color:var(--orange);}
+
+  /* Calendario */
+  .cal-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+  .cal-header .mtitle{font-weight:700; color:var(--navy); font-size:15px; text-transform:capitalize;}
+  .cal-nav{border:none; background:#fff; border-radius:6px; width:32px; height:32px; font-size:16px; color:var(--navy); cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:4px;}
+  .cal-dow{font-size:10px; text-align:center; color:var(--gray); font-weight:600; padding-bottom:4px;}
+  .cal-day{background:#fff; border-radius:8px; min-height:52px; padding:4px; font-size:11px; box-shadow:0 1px 2px rgba(0,0,0,.06); cursor:pointer; position:relative;}
+  .cal-day.empty{background:transparent; box-shadow:none; cursor:default;}
+  .cal-day.today{border:2px solid var(--orange);}
+  .cal-day.selected{background:var(--navy); color:#fff;}
+  .cal-day .dnum{font-weight:600;}
+  .cal-day .dots{display:flex; gap:2px; margin-top:3px; flex-wrap:wrap;}
+  .dot{font-size:8px; border-radius:8px; padding:1px 4px; color:#fff; font-weight:700;}
+  .dot.r{background:var(--navy);} .dot.d{background:var(--green);}
+  .cal-day.selected .dot.r{background:var(--orange);} .cal-day.selected .dot.d{background:#7fd3a3;}
+  .cal-legend{display:flex; gap:14px; font-size:11px; color:var(--gray); margin-top:10px;}
+  .cal-legend span{display:flex; align-items:center; gap:4px;}
+  .cal-detail{margin-top:14px;}
+  .cal-detail-item{background:#fff; border-radius:8px; padding:10px 12px; margin-bottom:6px; font-size:12px; box-shadow:0 1px 3px rgba(0,0,0,.06);}
+
+  .day-summary{background:#fff; border-radius:12px; padding:14px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-top:6px;}
+  .day-summary .dtitle{font-weight:700; color:var(--navy); font-size:15px; margin-bottom:10px;}
+  .day-summary .totals{display:flex; gap:10px; margin-bottom:14px;}
+  .day-summary .totals .t{flex:1; text-align:center; border-radius:8px; padding:8px; font-size:12px;}
+  .day-summary .totals .t.r{background:#EAF0F6; color:var(--navy);}
+  .day-summary .totals .t.d{background:#E7F5EC; color:var(--green);}
+  .day-summary .totals .t b{display:block; font-size:18px;}
+  .day-summary h4{font-size:12px; color:var(--gray); margin:12px 0 6px; text-transform:uppercase; letter-spacing:.4px;}
+  .day-summary h4:first-of-type{margin-top:0;}
+  .day-item{border:1px solid #e9e8e5; border-radius:8px; padding:9px 11px; margin-bottom:7px;}
+  .day-item .dcliente{font-weight:700; font-size:13px; color:#222;}
+  .day-item .dprod{font-size:12px; color:#444; margin:2px 0;}
+  .day-item .ddom{font-size:11px; color:var(--gray);}
+  .day-item .dbtns{display:flex; gap:6px; margin-top:6px;}
+
+  /* Modales */
+  .modal-bg{display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:100; align-items:flex-end; justify-content:center; overflow-y:auto;}
+  .modal-bg.open{display:flex;}
+  .modal{background:#fff; width:100%; max-width:560px; border-radius:16px 16px 0 0; padding:20px; max-height:92vh; overflow-y:auto; position:relative;}
+  .modal.centered{border-radius:16px; margin:auto;}
+  .modal h2{margin:0 0 14px; font-size:17px; color:var(--navy);}
+  .modal h3{margin:16px 0 8px; font-size:13px; color:var(--navy); border-top:1px solid #eee; padding-top:12px;}
+
+  /* Wizard de alquiler (fijo, sin scroll de página) */
+  .wizard-modal-bg{align-items:center;}
+  .wizard-modal{
+    background:#fff; width:100%; max-width:420px; border-radius:16px;
+    display:flex; flex-direction:column; height:min(480px, 80vh);
+    position:relative; overflow:hidden; margin:auto;
+  }
+  .wizard-head{padding:18px 20px 10px; flex-shrink:0;}
+  .wizard-head h2{margin:0; font-size:17px; color:var(--navy);}
+  .wizard-dots{display:flex; gap:6px; margin-top:10px;}
+  .wizard-dot{flex:1; height:4px; border-radius:4px; background:#e4e3e0;}
+  .wizard-dot.done{background:var(--navy);}
+  .wizard-dot.active{background:var(--orange);}
+  .wizard-step-label{font-size:11px; color:var(--gray); margin-top:6px;}
+  .wizard-body{flex:1; overflow-y:auto; padding:6px 20px 10px;}
+  .wizard-step{display:none; min-height:100%;}
+  .wizard-step.active{display:flex; flex-direction:column; justify-content:center;}
+  .wizard-step[data-step="2"].active{display:block; justify-content:initial;}
+  .wizard-foot{display:flex; gap:10px; padding:14px 20px; border-top:1px solid #eee; flex-shrink:0;}
+  .wizard-foot .btn{flex:1;}
+  .prod-check-list.compact{max-height:100%;}
+  .field{margin-bottom:12px;}
+  .field label{display:block; font-size:12px; font-weight:600; color:var(--gray); margin-bottom:4px;}
+  .field label .req{color:var(--red);}
+  .field input, .field select, .field textarea{width:100%; padding:9px 10px; border-radius:7px; border:1px solid #d8d7d4; font-size:14px; font-family:inherit;}
+  .field-row{display:flex; gap:10px;} .field-row .field{flex:1;}
+  .modal-btns{display:flex; gap:10px; margin-top:16px;} .modal-btns .btn{flex:1;}
+  .close-x{position:absolute; top:14px; right:16px; background:none; border:none; font-size:20px; color:var(--gray); cursor:pointer;}
+  .cliente-hint{font-size:11px; color:var(--green); margin-top:-8px; margin-bottom:10px; display:none;}
+  .cliente-hint.show{display:block;}
+
+  .prod-check-list{display:flex; flex-direction:column; gap:8px;}
+  .prod-check{border:1px solid #d8d7d4; border-radius:8px; padding:10px; display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .prod-check.checked{border-color:var(--navy); background:#f6f8fa;}
+  .prod-check .left{display:flex; align-items:center; gap:10px;}
+  .prod-check .left label{font-size:13px; font-weight:600; color:#222; margin:0;}
+  .prod-check .disp{font-size:10px; color:var(--gray);}
+  .prod-check .qty{width:56px; padding:5px; border-radius:6px; border:1px solid #d8d7d4; text-align:center; display:none;}
+  .prod-check.checked .qty{display:block;}
+  .precio-sugerido{background:var(--lightgray); border-radius:8px; padding:10px 12px; font-size:13px; margin-top:10px;}
+  .precio-sugerido b{color:var(--navy);}
+
+  .drive-status{font-size:12px; color:var(--gray); margin-top:10px; text-align:center;}
+
+  /* Firma */
+  .sig-summary{background:var(--lightgray); border-radius:8px; padding:10px 12px; font-size:12px; margin-bottom:12px; line-height:1.7;}
+  .sig-canvas-wrap{border:1px solid #d8d7d4; border-radius:8px; overflow:hidden; touch-action:none; background:#fff;}
+  #sigCanvas{width:100%; height:160px; display:block;}
+  .sig-clear-row{display:flex; justify-content:flex-end; margin-top:6px;}
+  .firmado-tag{font-size:11px; color:var(--green); font-weight:700;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="top-row">
+    <div>
+      <h1>DECO<span>-TOOLS</span></h1>
+      <div class="sub">Gestión de alquileres</div>
+    </div>
+    <button class="sync-btn" id="syncBtn" onclick="syncDrive()">☁ Sync</button>
+  </div>
+</header>
+
+<div class="app-shell">
+  <nav class="sidebar">
+    <div class="side-btn active" data-tab="alquileres" onclick="setTab('alquileres')"><span class="icon">📋</span>Alquileres</div>
+    <div class="side-btn" data-tab="precios" onclick="setTab('precios')"><span class="icon">💲</span>Precios/Stock</div>
+    <div class="side-btn" data-tab="calendario" onclick="setTab('calendario')"><span class="icon">📅</span>Calendario</div>
+    <div class="side-btn" data-tab="caja" onclick="setTab('caja')"><span class="icon">💰</span>Caja</div>
+  </nav>
+
+<main>
+
+  <!-- ================= VISTA ALQUILERES ================= -->
+  <div class="view active" id="view-alquileres">
+    <div class="reminders" id="remindersBox"></div>
+    <div class="cards">
+      <div class="card"><div class="num" id="statActivos">0</div><div class="lbl">Activos</div></div>
+      <div class="card alert"><div class="num" id="statAtrasados">0</div><div class="lbl">Atrasados</div></div>
+      <div class="card"><div class="num" id="statMes">0</div><div class="lbl">Este mes</div></div>
+    </div>
+    <div class="actions-bar">
+      <button class="btn btn-primary" onclick="openNewModal()">+ Nuevo alquiler</button>
+      <button class="btn btn-outline" onclick="exportarRecordatoriosICS()" title="Descargar recordatorios para tu calendario del celular">📅 Recordatorios</button>
+    </div>
+    <input type="text" class="search" id="searchInput" placeholder="Buscar por cliente, DNI o producto..." oninput="render()">
+    <div class="filters">
+      <div class="filter-chip active" data-f="todos" onclick="setFilter('todos')">Todos</div>
+      <div class="filter-chip" data-f="activo" onclick="setFilter('activo')">Activos</div>
+      <div class="filter-chip" data-f="atrasado" onclick="setFilter('atrasado')">Atrasados</div>
+      <div class="filter-chip" data-f="devuelto" onclick="setFilter('devuelto')">Devueltos</div>
+    </div>
+    <div id="list"></div>
+  </div>
+
+  <!-- ================= VISTA PRECIOS / STOCK ================= -->
+  <div class="view" id="view-precios">
+    <div class="actions-bar">
+      <button class="btn btn-orange" onclick="openAdecuacionModal()">% Adecuación de precios</button>
+      <button class="btn btn-outline" onclick="openProductModal(null)">+ Nuevo producto</button>
+    </div>
+    <div class="section-title">Catálogo</div>
+    <div id="productList"></div>
+
+    <div class="section-title">Historial de adecuaciones</div>
+    <div id="historyList"></div>
+  </div>
+
+  <!-- ================= VISTA CALENDARIO ================= -->
+  <div class="view" id="view-calendario">
+    <div class="cal-header">
+      <button class="cal-nav" onclick="calNav(-1)">‹</button>
+      <div class="mtitle" id="calTitle"></div>
+      <button class="cal-nav" onclick="calNav(1)">›</button>
+    </div>
+    <div class="cal-grid" id="calDow"></div>
+    <div class="cal-grid" id="calGrid" style="margin-top:4px;"></div>
+    <div class="cal-legend">
+      <span><span class="dot r">R</span> Retiros (unidades)</span>
+      <span><span class="dot d">D</span> Devoluciones pactadas (unidades)</span>
+    </div>
+    <div class="cal-detail" id="calDetail"></div>
+  </div>
+
+  <!-- ================= VISTA CAJA / CONTABILIDAD ================= -->
+  <div class="view" id="view-caja">
+    <div class="cards">
+      <div class="card"><div class="num" id="cajaMes">$0</div><div class="lbl">Ingresos del mes</div></div>
+      <div class="card"><div class="num" id="cajaTotal">$0</div><div class="lbl">Ingresos históricos</div></div>
+      <div class="card"><div class="num" id="cajaDepositos">$0</div><div class="lbl">Depósitos en juego</div></div>
+    </div>
+    <div class="section-title">Movimientos</div>
+    <div id="cajaList"></div>
+  </div>
+
+</main>
+
+</div><!-- /app-shell -->
+
+<!-- ============ MODAL NUEVO/EDITAR ALQUILER (WIZARD 3 PASOS) ============ -->
+<div class="modal-bg wizard-modal-bg" id="modalBg">
+  <div class="wizard-modal">
+    <button class="close-x" onclick="closeModal()">×</button>
+    <div class="wizard-head">
+      <h2 id="modalTitle">Nuevo alquiler</h2>
+      <div class="wizard-dots">
+        <div class="wizard-dot" id="dot-1"></div>
+        <div class="wizard-dot" id="dot-2"></div>
+        <div class="wizard-dot" id="dot-3"></div>
+      </div>
+      <div class="wizard-step-label" id="stepLabel">Paso 1 de 3 · Datos del cliente</div>
+    </div>
+    <input type="hidden" id="editId">
+
+    <div class="wizard-body" id="wizardBody">
+      <!-- PASO 1: CLIENTE -->
+      <div class="wizard-step" data-step="1">
+        <div class="field-row">
+          <div class="field">
+            <label>DNI <span class="req">*</span></label>
+            <input type="text" id="fDni" oninput="buscarClientePorDni()" placeholder="Sin puntos">
+          </div>
+          <div class="field">
+            <label>WhatsApp <span class="req">*</span></label>
+            <input type="text" id="fWhatsapp" placeholder="Solo números">
+          </div>
+        </div>
+        <div class="cliente-hint" id="clienteHint"></div>
+        <div class="field-row">
+          <div class="field">
+            <label>Apellido <span class="req">*</span></label>
+            <input type="text" id="fApellido" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div class="field">
+            <label>Nombre <span class="req">*</span></label>
+            <input type="text" id="fNombre" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+          </div>
+        </div>
+        <div class="field">
+          <label>Domicilio <span class="req">*</span></label>
+          <input type="text" id="fDomicilio" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+        </div>
+      </div>
+
+      <!-- PASO 2: PRODUCTOS -->
+      <div class="wizard-step" data-step="2">
+        <div class="prod-check-list compact" id="prodCheckList"></div>
+      </div>
+
+      <!-- PASO 3: FECHAS Y PRECIO -->
+      <div class="wizard-step" data-step="3">
+        <div class="field-row">
+          <div class="field">
+            <label>Fecha de entrega</label>
+            <input type="date" id="fEntrega" onchange="actualizarPrecioSugerido()">
+          </div>
+          <div class="field">
+            <label>Fecha pactada de devolución</label>
+            <input type="date" id="fDevolucionPactada" onchange="actualizarPrecioSugerido()">
+          </div>
+        </div>
+        <div class="precio-sugerido" id="precioSugerido">Precio sugerido: $0</div>
+        <div class="field-row" style="margin-top:12px;">
+          <div class="field">
+            <label>Precio acordado</label>
+            <input type="number" id="fPrecio" placeholder="$">
+          </div>
+          <div class="field">
+            <label>Depósito</label>
+            <input type="number" id="fDeposito" placeholder="$">
+          </div>
+        </div>
+        <div class="field">
+          <label>Observaciones</label>
+          <textarea id="fObs" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="wizard-foot">
+      <button class="btn btn-outline" id="btnAtras" onclick="wizardPrev()">Cancelar</button>
+      <button class="btn btn-primary" id="btnSiguiente" onclick="wizardNext()">Siguiente</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL PRODUCTO ============ -->
+<div class="modal-bg" id="productModalBg">
+  <div class="modal centered">
+    <button class="close-x" onclick="closeProductModal()">×</button>
+    <h2 id="productModalTitle">Nuevo producto</h2>
+    <input type="hidden" id="pEditId">
+    <div class="field">
+      <label>Nombre</label>
+      <input type="text" id="pNombre" placeholder="Ej: Compresor solo">
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Precio 1 día</label><input type="number" id="pPrecio1"></div>
+      <div class="field"><label>Precio 3 días</label><input type="number" id="pPrecio3"></div>
+      <div class="field"><label>Precio semana</label><input type="number" id="pPrecio7"></div>
+    </div>
+    <div class="field">
+      <label>Stock total</label>
+      <input type="number" id="pStock" min="0">
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="closeProductModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveProduct()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL ADECUACIÓN ============ -->
+<div class="modal-bg" id="adecuacionModalBg">
+  <div class="modal centered">
+    <button class="close-x" onclick="closeAdecuacionModal()">×</button>
+    <h2>Adecuación de precios</h2>
+    <p style="font-size:12px;color:var(--gray);">Aplica un % de incremento (o descuento, con signo -) a los 3 precios de todos los productos del catálogo. Queda registrado en el historial.</p>
+    <div class="field">
+      <label>Porcentaje a aplicar</label>
+      <input type="number" id="adecPct" placeholder="Ej: 10 para +10%, -5 para -5%">
+    </div>
+    <div class="field">
+      <label>Nota (opcional)</label>
+      <input type="text" id="adecNota" placeholder="Ej: ajuste por inflación agosto">
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="closeAdecuacionModal()">Cancelar</button>
+      <button class="btn btn-orange" onclick="aplicarAdecuacion()">Aplicar a todo el catálogo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL FIRMA / CONFIRMAR ENTREGA ============ -->
+<div class="modal-bg" id="firmaModalBg">
+  <div class="modal centered">
+    <button class="close-x" onclick="closeFirmaModal()">×</button>
+    <h2>Confirmar entrega</h2>
+    <div class="sig-summary" id="firmaSummary"></div>
+    <label style="font-size:12px;font-weight:600;color:var(--gray);display:block;margin-bottom:6px;">Firma del cliente (dedo o mouse)</label>
+    <div class="sig-canvas-wrap"><canvas id="sigCanvas"></canvas></div>
+    <div class="sig-clear-row">
+      <button class="mini-btn editar" onclick="limpiarFirma()">Limpiar firma</button>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="closeFirmaModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarFirmaYEmitir()">Guardar y emitir acta</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL SYNC INICIAL ============ -->
+<div class="modal-bg" id="syncModalBg">
+  <div class="modal centered">
+    <h2>Sincronizar con Google Drive</h2>
+    <p style="font-size:13px;color:var(--gray);">Conectá tu cuenta de Google para guardar una copia en Drive y acceder desde cualquier dispositivo.</p>
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="skipSync()">Usar solo en este dispositivo</button>
+      <button class="btn btn-primary" onclick="connectDrive()">Conectar Drive</button>
+    </div>
+    <div class="drive-status" id="driveStatus"></div>
+  </div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+/* ============ CONFIG ============ */
+const CLIENT_ID = "853385038024-h379oneaep6ikujs1v6o2qrfsb2skmp4.apps.googleusercontent.com";
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+const BACKUP_FILENAME = "deco-tools-gestion-backup.json";
+const STORAGE_KEY = "deco_tools_gestion_v1";
+const DRIVE_HINT_KEY = "deco_tools_gestion_drive_hint";
+
+let db = { products: [], clients: [], rentals: [], priceHistory: [] };
+let currentFilter = "todos";
+let currentTab = "alquileres";
+let tokenClient = null;
+let accessToken = null;
+let driveFileId = null;
+let calYear, calMonth, calSelectedDate = null;
+let clienteEncontradoId = null;
+let wizardStep = 1;
+const WIZARD_LABELS = { 1:"Datos del cliente", 2:"Productos alquilados", 3:"Fechas y precio" };
+
+/* ============ SEED INICIAL ============ */
+function seedProducts(){
+  return [
+    { id:"p1", nombre:"Compresor solo", precio1:25000, precio3:60000, precio7:115000, stock:1 },
+    { id:"p2", nombre:"Compresor + pistola de pintar", precio1:32000, precio3:76000, precio7:148000, stock:1 },
+    { id:"p3", nombre:"Compresor + pistola + accesorios", precio1:38000, precio3:90000, precio7:175000, stock:1 },
+    { id:"p4", nombre:"Sierra sensitiva", precio1:15000, precio3:35000, precio7:70000, stock:1 },
+    { id:"p5", nombre:"Soldadora inverter (electrodo)", precio1:15000, precio3:36000, precio7:70000, stock:1 },
+    { id:"p6", nombre:"Soldadora + máscara de soldar", precio1:17000, precio3:40000, precio7:80000, stock:1 },
+  ];
+}
+
+/* ============ PERSISTENCIA LOCAL ============ */
+function normalizeProducts(){
+  db.products.forEach(p=>{
+    p.precio1 = Number(p.precio1)||0;
+    p.precio3 = Number(p.precio3)||0;
+    p.precio7 = Number(p.precio7)||0;
+    p.stock = Number(p.stock)||0;
+  });
+}
+function loadLocal(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      db = JSON.parse(raw);
+      if(!db.products || db.products.length===0) db.products = seedProducts();
+      if(!db.clients) db.clients = [];
+      if(!db.rentals) db.rentals = [];
+      if(!db.priceHistory) db.priceHistory = [];
+    } else {
+      db = { products: seedProducts(), clients: [], rentals: [], priceHistory: [] };
+    }
+  }catch(e){
+    db = { products: seedProducts(), clients: [], rentals: [], priceHistory: [] };
+  }
+  normalizeProducts();
+}
+function saveLocal(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  localStorage.setItem(STORAGE_KEY+"_ts", new Date().toISOString());
+}
+
+/* ============ HELPERS ============ */
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function fmtFecha(iso){ if(!iso) return "-"; const [y,m,d]=iso.split("-"); return `${d}/${m}/${y}`; }
+function fmtMoney(n){ if(n===undefined||n===null||n==="") return "-"; return "$" + Number(n).toLocaleString("es-AR"); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function diasEntre(f1,f2){
+  if(!f1||!f2) return 1;
+  const d1=new Date(f1+"T00:00:00"), d2=new Date(f2+"T00:00:00");
+  const diff = Math.round((d2-d1)/(86400000));
+  return Math.max(diff,1);
+}
+function tierPrecio(prod, dias){
+  const p1 = Number(prod.precio1)||0, p3 = Number(prod.precio3)||0, p7 = Number(prod.precio7)||0;
+  if(dias<=1) return p1;
+  if(dias<=3) return p3;
+  if(dias<=7) return p7;
+  const diaria = p7/7;
+  return Math.round(p7 + (dias-7)*diaria);
+}
+function estadoDe(r){
+  if(r.devuelto) return "devuelto";
+  if(r.fDevolucionPactada && r.fDevolucionPactada < todayStr()) return "atrasado";
+  return "activo";
+}
+function productoNombre(id){ const p = db.products.find(x=>x.id===id); return p? p.nombre : "(producto eliminado)"; }
+function disponible(productId, excludeRentalId){
+  const prod = db.products.find(p=>p.id===productId);
+  if(!prod) return 0;
+  const reservado = db.rentals.filter(r=>!r.devuelto && r.id!==excludeRentalId)
+    .reduce((sum,r)=>{
+      const item = r.items.find(i=>i.productId===productId);
+      return sum + (item? item.cantidad : 0);
+    },0);
+  return prod.stock - reservado;
+}
+
+/* ============ TABS ============ */
+/* ============ CAJA / CONTABILIDAD ============ */
+function renderCaja(){
+  const thisMonth = todayStr().slice(0,7);
+  let totalHist = 0, totalMes = 0, depositos = 0;
+  const movimientos = db.rentals
+    .filter(r=>r.fEntrega)
+    .map(r=>{
+      const cli = db.clients.find(c=>c.id===r.clienteId) || {};
+      const monto = Number(r.fPrecio)||0;
+      totalHist += monto;
+      if(r.fEntrega.slice(0,7)===thisMonth) totalMes += monto;
+      return { fecha:r.fEntrega, cliente:`${cli.apellido||""}, ${cli.nombre||""}`, monto, productos:r.items.map(i=>productoNombre(i.productId)).join(", ") };
+    })
+    .sort((a,b)=> b.fecha.localeCompare(a.fecha));
+
+  db.rentals.filter(r=>!r.devuelto).forEach(r=>{ depositos += Number(r.fDeposito)||0; });
+
+  document.getElementById("cajaMes").textContent = fmtMoney(totalMes);
+  document.getElementById("cajaTotal").textContent = fmtMoney(totalHist);
+  document.getElementById("cajaDepositos").textContent = fmtMoney(depositos);
+
+  const list = document.getElementById("cajaList");
+  if(movimientos.length===0){
+    list.innerHTML = '<div class="empty">Todavía no hay movimientos registrados.</div>';
+    return;
+  }
+  let lastMonth = "";
+  let html = "";
+  movimientos.forEach(m=>{
+    const mesLabel = m.fecha.slice(0,7);
+    if(mesLabel !== lastMonth){
+      const [y,mm] = mesLabel.split("-");
+      const meses = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+      html += `<h4 style="font-size:12px;color:var(--gray);text-transform:uppercase;letter-spacing:.4px;margin:16px 0 8px;">${meses[Number(mm)-1]} ${y}</h4>`;
+      lastMonth = mesLabel;
+    }
+    html += `
+    <div class="history-item" style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div style="font-weight:700;color:var(--navy);">${escapeHtml(m.cliente)}</div>
+        <div style="color:var(--gray);">${fmtFecha(m.fecha)} · ${escapeHtml(m.productos)}</div>
+      </div>
+      <div style="font-weight:700;color:var(--green);">${fmtMoney(m.monto)}</div>
+    </div>`;
+  });
+  list.innerHTML = html;
+}
+
+/* ============ FIRMA / ACTA DE ENTREGA ============ */
+let firmaRentalId = null;
+let sigCtx = null;
+let sigDrawing = false;
+let sigHasContent = false;
+
+function openFirmaModal(rentalId){
+  firmaRentalId = rentalId;
+  const r = db.rentals.find(x=>x.id===rentalId);
+  if(!r) return;
+  const cli = db.clients.find(c=>c.id===r.clienteId) || {};
+  const productosTxt = r.items.map(i=>`${productoNombre(i.productId)} x${i.cantidad}`).join(", ");
+  document.getElementById("firmaSummary").innerHTML = `
+    <b>${escapeHtml(cli.apellido||"")}, ${escapeHtml(cli.nombre||"")}</b> · DNI ${escapeHtml(cli.dni||"")}<br>
+    ${escapeHtml(cli.domicilio||"")} · WhatsApp ${escapeHtml(cli.whatsapp||"")}<br><br>
+    ${escapeHtml(productosTxt)}<br>
+    Entrega: ${fmtFecha(r.fEntrega)} · Devolución pactada: ${fmtFecha(r.fDevolucionPactada)}<br>
+    Precio: ${fmtMoney(r.fPrecio)} · Depósito: ${fmtMoney(r.fDeposito)}
+  `;
+  document.getElementById("firmaModalBg").classList.add("open");
+  setTimeout(initSigCanvas, 50);
+}
+function closeFirmaModal(){
+  document.getElementById("firmaModalBg").classList.remove("open");
+  firmaRentalId = null;
+}
+function initSigCanvas(){
+  const canvas = document.getElementById("sigCanvas");
+  const wrap = canvas.parentElement;
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = wrap.clientWidth * ratio;
+  canvas.height = 160 * ratio;
+  canvas.style.width = wrap.clientWidth+"px";
+  canvas.style.height = "160px";
+  sigCtx = canvas.getContext("2d");
+  sigCtx.scale(ratio, ratio);
+  sigCtx.lineWidth = 2;
+  sigCtx.lineCap = "round";
+  sigCtx.strokeStyle = "#1B3A5C";
+  sigHasContent = false;
+
+  function pos(e){
+    const rect = canvas.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    return { x:cx, y:cy };
+  }
+  function start(e){ e.preventDefault(); sigDrawing=true; const p=pos(e); sigCtx.beginPath(); sigCtx.moveTo(p.x,p.y); }
+  function move(e){ if(!sigDrawing) return; e.preventDefault(); const p=pos(e); sigCtx.lineTo(p.x,p.y); sigCtx.stroke(); sigHasContent=true; }
+  function end(){ sigDrawing=false; }
+
+  canvas.onmousedown = start; canvas.onmousemove = move;
+  window.addEventListener("mouseup", end);
+  canvas.ontouchstart = start; canvas.ontouchmove = move; canvas.ontouchend = end;
+}
+function limpiarFirma(){
+  const canvas = document.getElementById("sigCanvas");
+  if(sigCtx) sigCtx.clearRect(0,0,canvas.width,canvas.height);
+  sigHasContent = false;
+}
+function guardarFirmaYEmitir(){
+  if(!sigHasContent){ alert("Pedile al cliente que firme en el recuadro antes de continuar."); return; }
+  const r = db.rentals.find(x=>x.id===firmaRentalId);
+  if(!r) return;
+  const canvas = document.getElementById("sigCanvas");
+  r.firmado = true;
+  r.firmaDataUrl = canvas.toDataURL("image/png");
+  r.firmaFecha = todayStr();
+  saveLocal();
+  closeFirmaModal();
+  render();
+  autoSyncIfConnected();
+  emitirActa(r.id);
+}
+function emitirActa(rentalId){
+  const r = db.rentals.find(x=>x.id===rentalId);
+  if(!r || !r.firmado) return;
+  const cli = db.clients.find(c=>c.id===r.clienteId) || {};
+  const productosRows = r.items.map(i=>`<tr><td>${escapeHtml(productoNombre(i.productId))}</td><td style="text-align:center;">${i.cantidad}</td></tr>`).join("");
+  const win = window.open("", "_blank");
+  if(!win){ alert("El navegador bloqueó la ventana emergente. Habilitá pop-ups para ver el acta."); return; }
+  win.document.write(`
+    <html><head><meta charset="utf-8"><title>Acta de entrega - ${escapeHtml(cli.apellido||"")}</title>
+    <style>
+      body{font-family:Arial,sans-serif; color:#222; padding:30px; max-width:700px; margin:auto;}
+      h1{color:#1B3A5C; font-size:20px; margin-bottom:2px;}
+      .sub{color:#E8622C; font-weight:bold; margin-bottom:20px;}
+      table{width:100%; border-collapse:collapse; margin:14px 0;}
+      td,th{border:1px solid #ccc; padding:8px; font-size:13px;}
+      th{background:#1B3A5C; color:#fff; text-align:left;}
+      .datos p{margin:3px 0; font-size:13px;}
+      .declaracion{font-size:12px; color:#444; margin:20px 0; line-height:1.5;}
+      .firma-box{margin-top:30px;}
+      .firma-box img{max-width:260px; border-bottom:1px solid #999; display:block;}
+      .firma-label{font-size:12px; color:#666; margin-top:4px;}
+      @media print{ .no-print{display:none;} }
+    </style></head>
+    <body>
+      <h1>DECO-TOOLS</h1>
+      <div class="sub">ACTA DE ENTREGA DE EQUIPO EN ALQUILER</div>
+      <div class="datos">
+        <p><b>Cliente:</b> ${escapeHtml(cli.apellido||"")}, ${escapeHtml(cli.nombre||"")} — DNI ${escapeHtml(cli.dni||"")}</p>
+        <p><b>Domicilio:</b> ${escapeHtml(cli.domicilio||"")}</p>
+        <p><b>WhatsApp:</b> ${escapeHtml(cli.whatsapp||"")}</p>
+        <p><b>Fecha de entrega:</b> ${fmtFecha(r.fEntrega)} &nbsp; <b>Devolución pactada:</b> ${fmtFecha(r.fDevolucionPactada)}</p>
+        <p><b>Precio acordado:</b> ${fmtMoney(r.fPrecio)} &nbsp; <b>Depósito:</b> ${fmtMoney(r.fDeposito)}</p>
+      </div>
+      <table><thead><tr><th>Equipo</th><th>Cantidad</th></tr></thead><tbody>${productosRows}</tbody></table>
+      <div class="declaracion">
+        El/la abajo firmante declara haber recibido el/los equipo/s detallados en este documento en buen estado
+        y en condiciones de funcionamiento, y se compromete a devolverlo/s en la fecha pactada, asumiendo la
+        responsabilidad por su cuidado, uso adecuado y devolución en las condiciones convenidas, conforme a lo
+        establecido en el contrato de alquiler de Deco-Tools.
+      </div>
+      <div class="firma-box">
+        <img src="${r.firmaDataUrl}">
+        <div class="firma-label">Firma del cliente · ${fmtFecha(r.firmaFecha)}</div>
+      </div>
+      <button class="no-print" onclick="window.print()" style="margin-top:24px;padding:10px 18px;background:#1B3A5C;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;">Imprimir / Guardar PDF</button>
+    </body></html>
+  `);
+  win.document.close();
+}
+
+function setTab(tab){
+  currentTab = tab;
+  document.querySelectorAll(".side-btn").forEach(el=>el.classList.toggle("active", el.dataset.tab===tab));
+  document.querySelectorAll(".view").forEach(el=>el.classList.remove("active"));
+  document.getElementById("view-"+tab).classList.add("active");
+  if(tab==="precios") renderPrecios();
+  if(tab==="calendario") renderCalendario();
+  if(tab==="caja") renderCaja();
+  if(tab==="alquileres") render();
+}
+
+/* ============ RENDER ALQUILERES ============ */
+function render(){
+  const search = document.getElementById("searchInput").value.trim().toLowerCase();
+  let filtered = db.rentals.filter(r=>{
+    const estado = estadoDe(r);
+    if(currentFilter !== "todos" && estado !== currentFilter) return false;
+    if(search){
+      const cli = db.clients.find(c=>c.id===r.clienteId);
+      const nombreCompleto = cli ? (cli.apellido+" "+cli.nombre+" "+cli.dni) : "";
+      const productos = r.items.map(i=>productoNombre(i.productId)).join(" ");
+      const hay = (nombreCompleto+" "+productos).toLowerCase();
+      if(!hay.includes(search)) return false;
+    }
+    return true;
+  });
+  filtered.sort((a,b)=> (b.fEntrega||"").localeCompare(a.fEntrega||""));
+
+  const list = document.getElementById("list");
+  if(filtered.length===0){
+    list.innerHTML = '<div class="empty">No hay alquileres para mostrar.</div>';
+  } else {
+    list.innerHTML = filtered.map(r=>{
+      const estado = estadoDe(r);
+      const badgeTxt = estado==="activo" ? "Activo" : estado==="atrasado" ? "Atrasado" : "Devuelto";
+      const cli = db.clients.find(c=>c.id===r.clienteId) || {};
+      const productosTxt = r.items.map(i=> `${productoNombre(i.productId)} x${i.cantidad}`).join(", ");
+      return `
+      <div class="rental ${estado}">
+        <div class="row1">
+          <div>
+            <div class="cliente">${escapeHtml(cli.apellido||"")}, ${escapeHtml(cli.nombre||"")} <span class="clienteN">N° ${cli.numero||"-"}</span></div>
+            <div class="equipo">${escapeHtml(productosTxt)}</div>
+          </div>
+          <span class="badge ${estado}">${badgeTxt}</span>
+        </div>
+        <div class="meta">
+          <span><b>Entrega:</b> ${fmtFecha(r.fEntrega)}</span>
+          <span><b>Devolución pactada:</b> ${fmtFecha(r.fDevolucionPactada)}</span>
+          ${r.devuelto ? `<span><b>Devuelto:</b> ${fmtFecha(r.fDevolucionReal)}</span>` : ""}
+          <span><b>Precio:</b> ${fmtMoney(r.fPrecio)}</span>
+          <span><b>Depósito:</b> ${fmtMoney(r.fDeposito)}</span>
+          <span><b>WhatsApp:</b> ${escapeHtml(cli.whatsapp||"-")}</span>
+        </div>
+        ${r.fObs ? `<div class="meta"><span>${escapeHtml(r.fObs)}</span></div>` : ""}
+        ${r.firmado ? `<div class="meta"><span class="firmado-tag">✍️ Firmado el ${fmtFecha(r.firmaFecha)}</span></div>` : ""}
+        <div class="btns">
+          ${!r.firmado ? `<button class="mini-btn devolver" onclick="openFirmaModal('${r.id}')">✍️ Confirmar entrega</button>` : `<button class="mini-btn editar" onclick="emitirActa('${r.id}')">📄 Ver acta</button>`}
+          ${!r.devuelto ? `<button class="mini-btn devolver" onclick="marcarDevuelto('${r.id}')">✓ Marcar devuelto</button>` : ""}
+          <button class="mini-btn editar" onclick="editRental('${r.id}')">Editar</button>
+          <button class="mini-btn borrar" onclick="deleteRental('${r.id}')">Borrar</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+  document.getElementById("statActivos").textContent = db.rentals.filter(r=>estadoDe(r)==="activo").length;
+  document.getElementById("statAtrasados").textContent = db.rentals.filter(r=>estadoDe(r)==="atrasado").length;
+  const thisMonth = todayStr().slice(0,7);
+  document.getElementById("statMes").textContent = db.rentals.filter(r=> (r.fEntrega||"").slice(0,7)===thisMonth).length;
+  renderReminders();
+}
+/* ============ RECORDATORIOS ============ */
+function tomorrowStr(){
+  const d = new Date();
+  d.setDate(d.getDate()+1);
+  return d.toISOString().slice(0,10);
+}
+function renderReminders(){
+  const box = document.getElementById("remindersBox");
+  const manana = tomorrowStr();
+  const pendientes = db.rentals.filter(r=>!r.devuelto && r.fDevolucionPactada===manana);
+  if(pendientes.length===0){ box.innerHTML = ""; return; }
+  box.innerHTML = pendientes.map(r=>{
+    const cli = db.clients.find(c=>c.id===r.clienteId) || {};
+    const productosTxt = r.items.map(i=>`${productoNombre(i.productId)} x${i.cantidad}`).join(", ");
+    const tel = (cli.whatsapp||"").replace(/\D/g,"");
+    return `
+    <div class="reminder-card">
+      <div class="rtitle">⏰ DEVOLUCIÓN MAÑANA — retirar equipo</div>
+      <div class="rcliente">${escapeHtml(cli.apellido||"")}, ${escapeHtml(cli.nombre||"")}</div>
+      <div class="requipo">${escapeHtml(productosTxt)} · ${escapeHtml(cli.domicilio||"")}</div>
+      <div class="rbtns">
+        ${tel ? `<a class="rbtn call" href="tel:${tel}">📞 Llamar</a>` : ""}
+        ${tel ? `<a class="rbtn wa" href="https://wa.me/${tel}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+/* ============ EXPORTAR RECORDATORIOS A CALENDARIO (.ics) ============ */
+function icsEscape(s){ return String(s).replace(/[,;]/g,"\\$&").replace(/\n/g,"\\n"); }
+function icsDate(dateStr){ return dateStr.replace(/-/g,""); }
+function exportarRecordatoriosICS(){
+  const activos = db.rentals.filter(r=>!r.devuelto && r.fDevolucionPactada);
+  if(activos.length===0){ alert("No hay alquileres activos con fecha de devolución pactada."); return; }
+
+  let ics = [
+    "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Deco-Tools//Recordatorios//ES","CALSCALE:GREGORIAN"
+  ];
+  activos.forEach(r=>{
+    const cli = db.clients.find(c=>c.id===r.clienteId) || {};
+    const productosTxt = r.items.map(i=>`${productoNombre(i.productId)} x${i.cantidad}`).join(", ");
+    // evento el día pactado de devolución, con alarma el día previo (24hs antes) y el mismo día
+    const uid = "deco-tools-"+r.id+"@decotools";
+    const summary = `Retirar equipo: ${cli.apellido||""}, ${cli.nombre||""}`;
+    const desc = `${productosTxt} - ${cli.domicilio||""} - Tel: ${cli.whatsapp||""}`;
+    ics.push(
+      "BEGIN:VEVENT",
+      "UID:"+uid,
+      "DTSTAMP:"+icsDate(todayStr())+"T090000Z",
+      "DTSTART;VALUE=DATE:"+icsDate(r.fDevolucionPactada),
+      "DTEND;VALUE=DATE:"+icsDate(r.fDevolucionPactada),
+      "SUMMARY:"+icsEscape(summary),
+      "DESCRIPTION:"+icsEscape(desc),
+      "BEGIN:VALARM",
+      "ACTION:DISPLAY",
+      "DESCRIPTION:Recordatorio: retirar equipo mañana",
+      "TRIGGER:-P1D",
+      "END:VALARM",
+      "BEGIN:VALARM",
+      "ACTION:DISPLAY",
+      "DESCRIPTION:Recordatorio: retirar equipo hoy",
+      "TRIGGER:PT9H",
+      "END:VALARM",
+      "END:VEVENT"
+    );
+  });
+  ics.push("END:VCALENDAR");
+
+  const blob = new Blob([ics.join("\r\n")], { type:"text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "deco-tools-recordatorios.ics";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function setFilter(f){
+  currentFilter = f;
+  document.querySelectorAll(".filter-chip").forEach(el=>el.classList.toggle("active", el.dataset.f===f));
+  render();
+}
+
+/* ============ MODAL ALQUILER ============ */
+function renderProdCheckList(selectedItems, excludeRentalId){
+  const cont = document.getElementById("prodCheckList");
+  cont.innerHTML = db.products.map(p=>{
+    const sel = (selectedItems||[]).find(i=>i.productId===p.id);
+    const disp = disponible(p.id, excludeRentalId) + (sel? sel.cantidad : 0);
+    return `
+    <div class="prod-check ${sel?'checked':''}" id="prodcheck-${p.id}">
+      <div class="left">
+        <input type="checkbox" id="chk-${p.id}" ${sel?'checked':''} onchange="toggleProdCheck('${p.id}')">
+        <div>
+          <label for="chk-${p.id}">${escapeHtml(p.nombre)}</label>
+          <div class="disp">Disponible: ${disp}</div>
+        </div>
+      </div>
+      <input type="number" class="qty" id="qty-${p.id}" min="1" max="${disp}" value="${sel?sel.cantidad:1}" onchange="actualizarPrecioSugerido()">
+    </div>`;
+  }).join("");
+  actualizarPrecioSugerido();
+}
+function toggleProdCheck(pid){
+  const checked = document.getElementById("chk-"+pid).checked;
+  document.getElementById("prodcheck-"+pid).classList.toggle("checked", checked);
+  actualizarPrecioSugerido();
+}
+function getSelectedItems(){
+  return db.products
+    .filter(p=>document.getElementById("chk-"+p.id) && document.getElementById("chk-"+p.id).checked)
+    .map(p=>({ productId:p.id, cantidad: Math.max(1, parseInt(document.getElementById("qty-"+p.id).value)||1) }));
+}
+function actualizarPrecioSugerido(){
+  const f1 = document.getElementById("fEntrega").value;
+  const f2 = document.getElementById("fDevolucionPactada").value;
+  const dias = diasEntre(f1,f2);
+  const items = getSelectedItems();
+  let total = 0;
+  items.forEach(it=>{
+    const prod = db.products.find(p=>p.id===it.productId);
+    if(prod) total += Number(tierPrecio(prod, dias)) * (Number(it.cantidad)||1);
+  });
+  document.getElementById("precioSugerido").innerHTML = `Días: <b>${dias}</b> · Precio sugerido: <b>${fmtMoney(total)}</b>`;
+  if(!document.getElementById("fPrecio").dataset.touched){
+    document.getElementById("fPrecio").value = total || "";
+  }
+}
+function buscarClientePorDni(){
+  const dni = document.getElementById("fDni").value.trim();
+  const hint = document.getElementById("clienteHint");
+  clienteEncontradoId = null;
+  if(!dni){ hint.classList.remove("show"); return; }
+  const cli = db.clients.find(c=>c.dni===dni);
+  if(cli){
+    clienteEncontradoId = cli.id;
+    document.getElementById("fApellido").value = cli.apellido;
+    document.getElementById("fNombre").value = cli.nombre;
+    document.getElementById("fWhatsapp").value = cli.whatsapp;
+    document.getElementById("fDomicilio").value = cli.domicilio;
+    hint.textContent = `Cliente existente N° ${cli.numero}: se completaron sus datos automáticamente.`;
+    hint.classList.add("show");
+  } else {
+    hint.classList.remove("show");
+  }
+}
+function openNewModal(){
+  document.getElementById("modalTitle").textContent = "Nuevo alquiler";
+  document.getElementById("editId").value = "";
+  ["fDni","fWhatsapp","fApellido","fNombre","fDomicilio","fObs"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("fPrecio").value = "";
+  document.getElementById("fPrecio").dataset.touched = "";
+  document.getElementById("fDeposito").value = "";
+  document.getElementById("clienteHint").classList.remove("show");
+  clienteEncontradoId = null;
+  document.getElementById("fEntrega").value = todayStr();
+  document.getElementById("fDevolucionPactada").value = todayStr();
+  renderProdCheckList([], null);
+  wizardStep = 1;
+  updateWizardUI();
+  document.getElementById("modalBg").classList.add("open");
+}
+function editRental(id){
+  const r = db.rentals.find(x=>x.id===id);
+  if(!r) return;
+  const cli = db.clients.find(c=>c.id===r.clienteId) || {};
+  document.getElementById("modalTitle").textContent = "Editar alquiler";
+  document.getElementById("editId").value = r.id;
+  document.getElementById("fDni").value = cli.dni||"";
+  document.getElementById("fWhatsapp").value = cli.whatsapp||"";
+  document.getElementById("fApellido").value = cli.apellido||"";
+  document.getElementById("fNombre").value = cli.nombre||"";
+  document.getElementById("fDomicilio").value = cli.domicilio||"";
+  document.getElementById("clienteHint").classList.remove("show");
+  clienteEncontradoId = cli.id||null;
+  document.getElementById("fEntrega").value = r.fEntrega||"";
+  document.getElementById("fDevolucionPactada").value = r.fDevolucionPactada||"";
+  document.getElementById("fPrecio").value = r.fPrecio||"";
+  document.getElementById("fPrecio").dataset.touched = "1";
+  document.getElementById("fDeposito").value = r.fDeposito||"";
+  document.getElementById("fObs").value = r.fObs||"";
+  renderProdCheckList(r.items, r.id);
+  wizardStep = 1;
+  updateWizardUI();
+  document.getElementById("modalBg").classList.add("open");
+}
+document.addEventListener("input", function(e){
+  if(e.target && e.target.id==="fPrecio"){ e.target.dataset.touched = "1"; }
+});
+function closeModal(){ document.getElementById("modalBg").classList.remove("open"); }
+
+/* ---- Wizard ---- */
+function updateWizardUI(){
+  document.querySelectorAll(".wizard-step").forEach(el=>{
+    el.classList.toggle("active", Number(el.dataset.step)===wizardStep);
+  });
+  for(let i=1;i<=3;i++){
+    const dot = document.getElementById("dot-"+i);
+    dot.classList.toggle("done", i<wizardStep);
+    dot.classList.toggle("active", i===wizardStep);
+  }
+  document.getElementById("stepLabel").textContent = `Paso ${wizardStep} de 3 · ${WIZARD_LABELS[wizardStep]}`;
+  document.getElementById("btnAtras").textContent = wizardStep===1 ? "Cancelar" : "Atrás";
+  document.getElementById("btnSiguiente").textContent = wizardStep===3 ? "Guardar" : "Siguiente";
+  document.getElementById("wizardBody") && (document.getElementById("wizardBody").scrollTop = 0);
+}
+function validateStep1(){
+  const dni = document.getElementById("fDni").value.trim();
+  const whatsapp = document.getElementById("fWhatsapp").value.trim();
+  const apellido = document.getElementById("fApellido").value.trim();
+  const nombre = document.getElementById("fNombre").value.trim();
+  const domicilio = document.getElementById("fDomicilio").value.trim();
+  if(!dni || !whatsapp || !apellido || !nombre || !domicilio){
+    alert("Completá DNI, WhatsApp, Apellido, Nombre y Domicilio: son obligatorios.");
+    return false;
+  }
+  return true;
+}
+function validateStep2(){
+  const items = getSelectedItems();
+  if(items.length===0){ alert("Seleccioná al menos un producto."); return false; }
+  const editId = document.getElementById("editId").value;
+  for(const it of items){
+    const disp = disponible(it.productId, editId||null);
+    if(it.cantidad > disp){
+      alert(`No hay stock suficiente de "${productoNombre(it.productId)}". Disponible: ${disp}`);
+      return false;
+    }
+  }
+  return true;
+}
+function wizardNext(){
+  if(wizardStep===1){
+    if(!validateStep1()) return;
+    wizardStep = 2; updateWizardUI(); return;
+  }
+  if(wizardStep===2){
+    if(!validateStep2()) return;
+    wizardStep = 3; updateWizardUI(); return;
+  }
+  if(wizardStep===3){
+    saveRental();
+  }
+}
+function wizardPrev(){
+  if(wizardStep===1){ closeModal(); return; }
+  wizardStep -= 1;
+  updateWizardUI();
+}
+
+function saveRental(){
+  const dni = document.getElementById("fDni").value.trim();
+  const whatsapp = document.getElementById("fWhatsapp").value.trim();
+  const apellido = document.getElementById("fApellido").value.trim().toUpperCase();
+  const nombre = document.getElementById("fNombre").value.trim().toUpperCase();
+  const domicilio = document.getElementById("fDomicilio").value.trim().toUpperCase();
+  if(!dni || !whatsapp || !apellido || !nombre || !domicilio){
+    alert("Completá DNI, WhatsApp, Apellido, Nombre y Domicilio: son obligatorios.");
+    return;
+  }
+  const items = getSelectedItems();
+  if(items.length===0){
+    alert("Seleccioná al menos un producto.");
+    return;
+  }
+  const editId = document.getElementById("editId").value;
+  for(const it of items){
+    const disp = disponible(it.productId, editId||null);
+    if(it.cantidad > disp){
+      alert(`No hay stock suficiente de "${productoNombre(it.productId)}". Disponible: ${disp}`);
+      return;
+    }
+  }
+
+  let cliente = db.clients.find(c=>c.dni===dni);
+  if(cliente){
+    cliente.apellido = apellido; cliente.nombre = nombre;
+    cliente.whatsapp = whatsapp; cliente.domicilio = domicilio;
+  } else {
+    const nextNum = db.clients.length ? Math.max(...db.clients.map(c=>c.numero)) + 1 : 1;
+    cliente = { id:"c"+Date.now(), numero: nextNum, dni, apellido, nombre, whatsapp, domicilio };
+    db.clients.push(cliente);
+  }
+
+  const data = {
+    clienteId: cliente.id,
+    items,
+    fEntrega: document.getElementById("fEntrega").value,
+    fDevolucionPactada: document.getElementById("fDevolucionPactada").value,
+    fPrecio: document.getElementById("fPrecio").value,
+    fDeposito: document.getElementById("fDeposito").value,
+    fObs: document.getElementById("fObs").value.trim(),
+  };
+
+  if(editId){
+    const idx = db.rentals.findIndex(x=>x.id===editId);
+    if(idx>=0) db.rentals[idx] = {...db.rentals[idx], ...data};
+  } else {
+    db.rentals.push({ id:"r"+Date.now(), devuelto:false, fDevolucionReal:"", firmado:false, firmaDataUrl:"", firmaFecha:"", ...data });
+  }
+  saveLocal(); closeModal(); render(); autoSyncIfConnected();
+}
+function marcarDevuelto(id){
+  const r = db.rentals.find(x=>x.id===id);
+  if(!r) return;
+  r.devuelto = true; r.fDevolucionReal = todayStr();
+  saveLocal(); render(); autoSyncIfConnected();
+}
+function deleteRental(id){
+  if(!confirm("¿Borrar este registro de alquiler?")) return;
+  db.rentals = db.rentals.filter(x=>x.id!==id);
+  saveLocal(); render(); autoSyncIfConnected();
+}
+
+/* ============ PRECIOS / STOCK ============ */
+function renderPrecios(){
+  const cont = document.getElementById("productList");
+  cont.innerHTML = db.products.map(p=>{
+    const disp = disponible(p.id, null);
+    return `
+    <div class="prod-card">
+      <div class="row1">
+        <div class="nombre">${escapeHtml(p.nombre)}</div>
+        <div class="stock ${disp<=0?'agotado':''}">Disponible: <b>${disp}</b> / ${p.stock}</div>
+      </div>
+      <div class="prod-precios">
+        <div><b>1 día</b>${fmtMoney(p.precio1)}</div>
+        <div><b>3 días</b>${fmtMoney(p.precio3)}</div>
+        <div><b>Semana</b>${fmtMoney(p.precio7)}</div>
+      </div>
+      <div class="btns">
+        <button class="mini-btn editar" onclick="openProductModal('${p.id}')">Editar</button>
+        <button class="mini-btn borrar" onclick="deleteProduct('${p.id}')">Borrar</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  const hist = document.getElementById("historyList");
+  if(db.priceHistory.length===0){
+    hist.innerHTML = '<div class="empty">Todavía no se aplicaron adecuaciones de precios.</div>';
+  } else {
+    hist.innerHTML = db.priceHistory.slice().reverse().map(h=>`
+      <div class="history-item">
+        <span class="pct">${h.pct>0?'+':''}${h.pct}%</span> aplicado el ${fmtFecha(h.fecha)} a ${h.productos} producto(s)
+        ${h.nota ? ` · ${escapeHtml(h.nota)}` : ""}
+      </div>
+    `).join("");
+  }
+}
+function openProductModal(id){
+  document.getElementById("pEditId").value = id||"";
+  if(id){
+    const p = db.products.find(x=>x.id===id);
+    document.getElementById("productModalTitle").textContent = "Editar producto";
+    document.getElementById("pNombre").value = p.nombre;
+    document.getElementById("pPrecio1").value = p.precio1;
+    document.getElementById("pPrecio3").value = p.precio3;
+    document.getElementById("pPrecio7").value = p.precio7;
+    document.getElementById("pStock").value = p.stock;
+  } else {
+    document.getElementById("productModalTitle").textContent = "Nuevo producto";
+    ["pNombre","pPrecio1","pPrecio3","pPrecio7"].forEach(id=>document.getElementById(id).value="");
+    document.getElementById("pStock").value = 1;
+  }
+  document.getElementById("productModalBg").classList.add("open");
+}
+function closeProductModal(){ document.getElementById("productModalBg").classList.remove("open"); }
+function saveProduct(){
+  const id = document.getElementById("pEditId").value;
+  const nombre = document.getElementById("pNombre").value.trim();
+  if(!nombre){ alert("Ingresá el nombre del producto"); return; }
+  const data = {
+    nombre,
+    precio1: Number(document.getElementById("pPrecio1").value)||0,
+    precio3: Number(document.getElementById("pPrecio3").value)||0,
+    precio7: Number(document.getElementById("pPrecio7").value)||0,
+    stock: Number(document.getElementById("pStock").value)||0,
+  };
+  if(id){
+    const idx = db.products.findIndex(x=>x.id===id);
+    if(idx>=0) db.products[idx] = {...db.products[idx], ...data};
+  } else {
+    db.products.push({ id:"p"+Date.now(), ...data });
+  }
+  saveLocal(); closeProductModal(); renderPrecios(); autoSyncIfConnected();
+}
+function deleteProduct(id){
+  const enUso = db.rentals.some(r=>!r.devuelto && r.items.some(i=>i.productId===id));
+  if(enUso){ alert("No se puede borrar: tiene alquileres activos con este producto."); return; }
+  if(!confirm("¿Borrar este producto del catálogo?")) return;
+  db.products = db.products.filter(x=>x.id!==id);
+  saveLocal(); renderPrecios(); autoSyncIfConnected();
+}
+function openAdecuacionModal(){
+  document.getElementById("adecPct").value = "";
+  document.getElementById("adecNota").value = "";
+  document.getElementById("adecuacionModalBg").classList.add("open");
+}
+function closeAdecuacionModal(){ document.getElementById("adecuacionModalBg").classList.remove("open"); }
+function aplicarAdecuacion(){
+  const pct = Number(document.getElementById("adecPct").value);
+  if(!pct){ alert("Ingresá un porcentaje distinto de 0"); return; }
+  const nota = document.getElementById("adecNota").value.trim();
+  db.products.forEach(p=>{
+    p.precio1 = Math.round(p.precio1 * (1+pct/100) / 100) * 100;
+    p.precio3 = Math.round(p.precio3 * (1+pct/100) / 100) * 100;
+    p.precio7 = Math.round(p.precio7 * (1+pct/100) / 100) * 100;
+  });
+  db.priceHistory.push({ fecha: todayStr(), pct, nota, productos: db.products.length });
+  saveLocal(); closeAdecuacionModal(); renderPrecios(); autoSyncIfConnected();
+}
+
+/* ============ CALENDARIO ============ */
+function calNav(delta){
+  calMonth += delta;
+  if(calMonth<0){ calMonth=11; calYear--; }
+  if(calMonth>11){ calMonth=0; calYear++; }
+  calSelectedDate = null;
+  renderCalendario();
+}
+function renderCalendario(){
+  if(calYear===undefined){ const d=new Date(); calYear=d.getFullYear(); calMonth=d.getMonth(); }
+  const meses = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  document.getElementById("calTitle").textContent = `${meses[calMonth]} ${calYear}`;
+
+  const dow = ["D","L","M","M","J","V","S"];
+  document.getElementById("calDow").innerHTML = dow.map(d=>`<div class="cal-dow">${d}</div>`).join("");
+
+  const firstDay = new Date(calYear, calMonth, 1);
+  const startOffset = firstDay.getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+
+  const events = {};
+  db.rentals.forEach(r=>{
+    if(r.fEntrega){
+      events[r.fEntrega] = events[r.fEntrega] || {retiros:0, devoluciones:0, items:[]};
+      const cant = r.items.reduce((s,i)=>s+i.cantidad,0);
+      events[r.fEntrega].retiros += cant;
+      events[r.fEntrega].items.push({tipo:"retiro", rental:r});
+    }
+    if(r.fDevolucionPactada && !r.devuelto){
+      events[r.fDevolucionPactada] = events[r.fDevolucionPactada] || {retiros:0, devoluciones:0, items:[]};
+      const cant = r.items.reduce((s,i)=>s+i.cantidad,0);
+      events[r.fDevolucionPactada].devoluciones += cant;
+      events[r.fDevolucionPactada].items.push({tipo:"devolucion", rental:r});
+    }
+  });
+
+  let html = "";
+  for(let i=0;i<startOffset;i++) html += `<div class="cal-day empty"></div>`;
+  const today = todayStr();
+  for(let d=1; d<=daysInMonth; d++){
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const ev = events[dateStr];
+    let cls = "cal-day";
+    if(dateStr===today) cls += " today";
+    if(dateStr===calSelectedDate) cls += " selected";
+    html += `<div class="${cls}" onclick="calSelectDay('${dateStr}')">
+      <div class="dnum">${d}</div>
+      <div class="dots">
+        ${ev && ev.retiros ? `<span class="dot r">R${ev.retiros}</span>` : ""}
+        ${ev && ev.devoluciones ? `<span class="dot d">D${ev.devoluciones}</span>` : ""}
+      </div>
+    </div>`;
+  }
+  document.getElementById("calGrid").innerHTML = html;
+
+  const detail = document.getElementById("calDetail");
+  if(calSelectedDate && events[calSelectedDate]){
+    const ev = events[calSelectedDate];
+    const retiros = ev.items.filter(it=>it.tipo==="retiro");
+    const devoluciones = ev.items.filter(it=>it.tipo==="devolucion");
+
+    function itemCard(it){
+      const r = it.rental;
+      const cli = db.clients.find(c=>c.id===r.clienteId) || {};
+      const productosTxt = r.items.map(i=>`${productoNombre(i.productId)} x${i.cantidad}`).join(", ");
+      const tel = (cli.whatsapp||"").replace(/\D/g,"");
+      return `
+      <div class="day-item">
+        <div class="dcliente">${escapeHtml(cli.apellido||"")}, ${escapeHtml(cli.nombre||"")} <span style="color:var(--gray);font-weight:400;">N° ${cli.numero||"-"}</span></div>
+        <div class="dprod">${escapeHtml(productosTxt)}</div>
+        <div class="ddom">📍 ${escapeHtml(cli.domicilio||"-")}</div>
+        <div class="dbtns">
+          ${tel ? `<a class="rbtn call" href="tel:${tel}">📞 Llamar</a>` : ""}
+          ${tel ? `<a class="rbtn wa" href="https://wa.me/${tel}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ""}
+        </div>
+      </div>`;
+    }
+
+    detail.innerHTML = `
+    <div class="day-summary">
+      <div class="dtitle">${fmtFecha(calSelectedDate)}</div>
+      <div class="totals">
+        <div class="t r">Retiros<b>${ev.retiros}</b>unidades</div>
+        <div class="t d">Devoluciones<b>${ev.devoluciones}</b>unidades</div>
+      </div>
+      ${retiros.length ? `<h4>🚚 Retiros (${retiros.length})</h4>` + retiros.map(itemCard).join("") : ""}
+      ${devoluciones.length ? `<h4>↩ Devoluciones pactadas (${devoluciones.length})</h4>` + devoluciones.map(itemCard).join("") : ""}
+    </div>`;
+  } else if(calSelectedDate){
+    detail.innerHTML = `<div class="day-summary"><div class="dtitle">${fmtFecha(calSelectedDate)}</div><div class="empty" style="padding:10px 0;">Sin movimientos ese día.</div></div>`;
+  } else {
+    detail.innerHTML = "";
+  }
+}
+function calSelectDay(dateStr){
+  calSelectedDate = (calSelectedDate===dateStr) ? null : dateStr;
+  renderCalendario();
+}
+
+/* ============ GOOGLE DRIVE SYNC ============ */
+function initGoogle(){
+  if(typeof google === "undefined"){ setTimeout(initGoogle, 300); return; }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID, scope: DRIVE_SCOPE,
+    callback: (resp)=>{
+      if(resp.access_token){
+        accessToken = resp.access_token;
+        localStorage.setItem(DRIVE_HINT_KEY, "1");
+        document.getElementById("syncModalBg").classList.remove("open");
+        driveLoadThenMerge();
+      }
+    }
+  });
+}
+function connectDrive(){ document.getElementById("driveStatus").textContent = "Conectando..."; tokenClient.requestAccessToken(); }
+function skipSync(){ localStorage.setItem(DRIVE_HINT_KEY, "0"); document.getElementById("syncModalBg").classList.remove("open"); }
+function syncDrive(){ if(!accessToken){ if(tokenClient) tokenClient.requestAccessToken(); return; } driveSaveNow(); }
+function setSyncing(on){ const btn=document.getElementById("syncBtn"); btn.classList.toggle("syncing",on); btn.textContent = on ? "☁ ..." : "☁ Sync"; }
+async function findOrCreateFile(){
+  setSyncing(true);
+  const q = encodeURIComponent(`name='${BACKUP_FILENAME}' and trashed=false`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)`, { headers:{ Authorization:`Bearer ${accessToken}` } });
+  const json = await res.json();
+  if(json.files && json.files.length>0){ driveFileId = json.files[0].id; }
+  else {
+    const createRes = await fetch("https://www.googleapis.com/drive/v3/files", {
+      method:"POST", headers:{ Authorization:`Bearer ${accessToken}`, "Content-Type":"application/json" },
+      body: JSON.stringify({ name: BACKUP_FILENAME })
+    });
+    const createJson = await createRes.json();
+    driveFileId = createJson.id;
+  }
+}
+async function driveSaveNow(){
+  try{
+    if(!driveFileId) await findOrCreateFile();
+    const body = JSON.stringify({ ...db, updatedAt: new Date().toISOString() });
+    await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`, {
+      method:"PATCH", headers:{ Authorization:`Bearer ${accessToken}`, "Content-Type":"application/json" }, body
+    });
+  }catch(e){ console.error("Error guardando en Drive", e); } finally{ setSyncing(false); }
+}
+async function driveLoadThenMerge(){
+  try{
+    setSyncing(true);
+    await findOrCreateFile();
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`, { headers:{ Authorization:`Bearer ${accessToken}` } });
+    if(res.ok){
+      const text = await res.text();
+      if(text){
+        const remote = JSON.parse(text);
+        if(remote && remote.rentals){
+          const localTs = localStorage.getItem(STORAGE_KEY+"_ts") || "";
+          if(!db.rentals.length || (remote.updatedAt && remote.updatedAt > localTs)){
+            db = { products: remote.products||seedProducts(), clients: remote.clients||[], rentals: remote.rentals||[], priceHistory: remote.priceHistory||[] };
+            normalizeProducts();
+            saveLocal();
+          }
+        }
+      }
+    }
+    render(); if(currentTab==="precios") renderPrecios(); if(currentTab==="calendario") renderCalendario();
+    await driveSaveNow();
+  }catch(e){ console.error("Error cargando de Drive", e); setSyncing(false); }
+}
+function autoSyncIfConnected(){ if(accessToken) driveSaveNow(); }
+
+/* ============ INIT ============ */
+window.onload = function(){
+  loadLocal();
+  render();
+  initGoogle();
+  const hint = localStorage.getItem(DRIVE_HINT_KEY);
+  if(hint === "1"){
+    setTimeout(()=>{ if(tokenClient) tokenClient.requestAccessToken({prompt:""}); }, 500);
+  } else if(hint === null){
+    document.getElementById("syncModalBg").classList.add("open");
+  }
+};
+</script>
+</body>
+</html>
