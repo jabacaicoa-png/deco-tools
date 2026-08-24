@@ -127,6 +127,13 @@
 
   .history-item{background:#fff; border-radius:8px; padding:10px 12px; margin-bottom:6px; font-size:12px; box-shadow:0 1px 3px rgba(0,0,0,.06);}
   .history-item .pct{font-weight:700; color:var(--orange);}
+  .hist-detalle{margin-top:10px; padding-top:8px; border-top:1px solid #eee;}
+  .hist-detalle-row{display:flex; flex-direction:column; gap:2px; padding:5px 0; border-bottom:1px dashed #eee; font-size:11px;}
+  .hist-detalle-row:last-child{border-bottom:none;}
+  .hd-nombre{font-weight:700; color:var(--navy);}
+  .hd-precios{color:#444; display:flex; flex-wrap:wrap; gap:2px 8px;}
+  .hd-tag{color:var(--gray); font-weight:600; margin-left:4px;}
+  .hd-tag:first-child{margin-left:0;}
 
   /* Calendario */
   .cal-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
@@ -1408,42 +1415,79 @@ function renderHistorialAdecuaciones(){
   if(!hist) return;
   if(db.priceHistory.length===0){
     hist.innerHTML = '<div class="empty">Todavía no se aplicaron adecuaciones de precios.</div>';
-  } else {
-    const lastIdx = db.priceHistory.length - 1;
-    hist.innerHTML = db.priceHistory.map((h, idx)=>({h, idx})).slice().reverse().map(item=>{
-      const h = item.h, idx = item.idx;
-      const puedeDeshacer = idx===lastIdx && h.snapshotBefore;
-      let texto = "";
-      if(h.tipo==="regla"){
-        texto = `<b>Regla de tramos</b> aplicada el ${fmtFecha(h.fecha)}${h.nota ? ` · ${escapeHtml(h.nota)}` : ""}`;
-      } else if(h.tipo==="reset_total"){
-        texto = `<b>Catálogo restablecido</b> a precios originales el ${fmtFecha(h.fecha)}`;
-      } else if(h.tipo==="reset_producto"){
-        texto = `${escapeHtml(h.nota||"")} · ${fmtFecha(h.fecha)}`;
-      } else {
-        texto = `<span class="pct">${h.pct>0?'+':''}${h.pct}%</span> aplicado el ${fmtFecha(h.fecha)} a ${h.productos} producto(s)${h.nota ? ` · ${escapeHtml(h.nota)}` : ""}`;
-      }
-      return `
-      <div class="history-item" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-        <div>${texto}</div>
-        ${puedeDeshacer ? `<button class="mini-btn editar" onclick="deshacerAdecuacion(${idx})">Deshacer</button>` : ""}
-      </div>
-    `;
-    }).join("");
+    return;
   }
+  const lastIdx = db.priceHistory.length - 1;
+  hist.innerHTML = db.priceHistory.map((h, idx)=>({h, idx})).slice().reverse().map(item=>{
+    const h = item.h, idx = item.idx;
+    const puedeDeshacer = idx===lastIdx && h.snapshotBefore;
+    let texto = "";
+    if(h.tipo==="regla"){
+      texto = `<b>Regla de tramos</b> aplicada el ${fmtFecha(h.fecha)}${h.nota ? ` · ${escapeHtml(h.nota)}` : ""}`;
+    } else if(h.tipo==="reset_total"){
+      texto = `<b>Catálogo restablecido</b> a precios originales el ${fmtFecha(h.fecha)}`;
+    } else if(h.tipo==="reset_producto"){
+      texto = `${escapeHtml(h.nota||"")} · ${fmtFecha(h.fecha)}`;
+    } else {
+      texto = `<span class="pct">${h.pct>0?'+':''}${h.pct}%</span> aplicado el ${fmtFecha(h.fecha)} a ${h.productos} producto(s)${h.nota ? ` · ${escapeHtml(h.nota)}` : ""}`;
+    }
+
+    const detalleId = `hist-detalle-${idx}`;
+    const tieneDetalle = h.snapshotAfter && h.snapshotAfter.length;
+    let detalleHtml = "";
+    if(tieneDetalle){
+      const filas = h.snapshotAfter.map(after=>{
+        const before = (h.snapshotBefore||[]).find(b=>b.id===after.id);
+        return `
+        <div class="hist-detalle-row">
+          <span class="hd-nombre">${escapeHtml(after.nombre||"")}</span>
+          <span class="hd-precios">
+            <span class="hd-tag">1d</span> ${before?fmtMoney(before.precio1):"-"} → <b>${fmtMoney(after.precio1)}</b>
+            <span class="hd-tag">3d</span> ${before?fmtMoney(before.precio3):"-"} → <b>${fmtMoney(after.precio3)}</b>
+            <span class="hd-tag">5d</span> ${before?fmtMoney(before.precio5):"-"} → <b>${fmtMoney(after.precio5)}</b>
+            <span class="hd-tag">7d</span> ${before?fmtMoney(before.precio7):"-"} → <b>${fmtMoney(after.precio7)}</b>
+          </span>
+        </div>`;
+      }).join("");
+      detalleHtml = `<div class="hist-detalle" id="${detalleId}" style="display:none;">${filas}</div>`;
+    }
+
+    return `
+    <div class="history-item">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+        <div>${texto}</div>
+        <div style="display:flex; gap:6px; flex-shrink:0;">
+          ${tieneDetalle ? `<button class="mini-btn editar" onclick="toggleHistDetalle('${detalleId}', this)">Ver detalle</button>` : ""}
+          ${puedeDeshacer ? `<button class="mini-btn editar" onclick="deshacerAdecuacion(${idx})">Deshacer</button>` : ""}
+        </div>
+      </div>
+      ${detalleHtml}
+    </div>`;
+  }).join("");
+}
+function toggleHistDetalle(id, btn){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const abierto = el.style.display !== "none";
+  el.style.display = abierto ? "none" : "block";
+  if(btn) btn.textContent = abierto ? "Ver detalle" : "Ocultar detalle";
 }
 function restablecerPrecioOriginal(id){
   const p = db.products.find(x=>x.id===id);
   if(!p) return;
   if(!confirm(`¿Volver "${p.nombre}" a su precio original (1d ${fmtMoney(p.precioBase1)} · 3d ${fmtMoney(p.precioBase3)} · 5d ${fmtMoney(p.precioBase5)} · 7d ${fmtMoney(p.precioBase7)})?`)) return;
+  const snapshotBefore = [{ id:p.id, nombre:p.nombre, precio1:p.precio1, precio3:p.precio3, precio5:p.precio5, precio7:p.precio7 }];
   p.precio1=p.precioBase1; p.precio3=p.precioBase3; p.precio5=p.precioBase5; p.precio7=p.precioBase7;
-  db.priceHistory.push({ tipo:"reset_producto", fecha: todayStr(), nota:`"${p.nombre}" restablecido al precio original` });
+  const snapshotAfter = [{ id:p.id, nombre:p.nombre, precio1:p.precio1, precio3:p.precio3, precio5:p.precio5, precio7:p.precio7 }];
+  db.priceHistory.push({ tipo:"reset_producto", fecha: todayStr(), nota:`"${p.nombre}" restablecido al precio original`, snapshotBefore, snapshotAfter });
   saveLocal(); renderPrecios(); autoSyncIfConnected();
 }
 function restablecerTodoOriginal(){
   if(!confirm("¿Restablecer TODOS los productos a su precio original? Se pierden las adecuaciones aplicadas hasta ahora.")) return;
+  const snapshotBefore = db.products.map(p=>({ id:p.id, nombre:p.nombre, precio1:p.precio1, precio3:p.precio3, precio5:p.precio5, precio7:p.precio7 }));
   db.products.forEach(p=>{ p.precio1=p.precioBase1; p.precio3=p.precioBase3; p.precio5=p.precioBase5; p.precio7=p.precioBase7; });
-  db.priceHistory.push({ tipo:"reset_total", fecha: todayStr() });
+  const snapshotAfter = db.products.map(p=>({ id:p.id, nombre:p.nombre, precio1:p.precio1, precio3:p.precio3, precio5:p.precio5, precio7:p.precio7 }));
+  db.priceHistory.push({ tipo:"reset_total", fecha: todayStr(), snapshotBefore, snapshotAfter });
   saveLocal(); renderPrecios(); autoSyncIfConnected();
 }
 function deshacerAdecuacion(idx){
@@ -1469,13 +1513,15 @@ function aplicarReglaTramos(){
   const d5 = Number(document.getElementById("ruleD5").value)||0;
   const d7 = Number(document.getElementById("ruleD7").value)||0;
   db.tierDiscounts = { d3, d5, d7 };
+  const snapshotBefore = db.products.map(p=>({ id:p.id, nombre:p.nombre, precio1:p.precio1, precio3:p.precio3, precio5:p.precio5, precio7:p.precio7 }));
   db.products.forEach(p=>{
     const base = Number(p.precio1)||0;
     p.precio3 = Math.round(base*3*(1-d3/100)/100)*100;
     p.precio5 = Math.round(base*5*(1-d5/100)/100)*100;
     p.precio7 = Math.round(base*7*(1-d7/100)/100)*100;
   });
-  db.priceHistory.push({ tipo:"regla", fecha: todayStr(), nota:`Regla de tramos: 3d -${d3}%, 5d -${d5}%, 7d -${d7}% (sobre el precio de 1 día)` });
+  const snapshotAfter = db.products.map(p=>({ id:p.id, nombre:p.nombre, precio1:p.precio1, precio3:p.precio3, precio5:p.precio5, precio7:p.precio7 }));
+  db.priceHistory.push({ tipo:"regla", fecha: todayStr(), nota:`Regla de tramos: 3d -${d3}%, 5d -${d5}%, 7d -${d7}% (sobre el precio de 1 día)`, snapshotBefore, snapshotAfter });
   saveLocal(); closeReglaModal(); renderPrecios(); autoSyncIfConnected();
 }
 
@@ -1571,7 +1617,6 @@ function importarExcel(file){
 
       db.products = catalogoNuevo;
       normalizeProducts();
-      db.priceHistory.push({ tipo:"reset_producto", fecha: todayStr(), nota:`Importación desde Excel: ${actualizados} actualizado(s), ${creados} nuevo(s), ${eliminados} eliminado(s), ${descontinuados} descontinuado(s), ${mantenidos} mantenido(s) por tener pedidos activos` });
       saveLocal(); renderPrecios(); autoSyncIfConnected();
       alert(`Importación completa:\n${actualizados} actualizado(s)\n${creados} nuevo(s)\n${eliminados} eliminado(s) (sin ningún pedido histórico)${descontinuados ? `\n${descontinuados} descontinuado(s) (tenían historial, ya no se ofrecen pero se conservan)` : ""}${mantenidos ? `\n${mantenidos} mantenido(s) porque tienen pedidos activos` : ""}`);
     }catch(err){
@@ -1648,14 +1693,15 @@ function aplicarAdecuacion(){
   const pct = Number(document.getElementById("adecPct").value);
   if(!pct){ alert("Ingresá un porcentaje distinto de 0 (podés usar negativo para bajar precios)"); return; }
   const nota = document.getElementById("adecNota").value.trim();
-  const snapshotBefore = db.products.map(p=>({ id:p.id, precio1:p.precio1, precio3:p.precio3, precio5:p.precio5, precio7:p.precio7 }));
+  const snapshotBefore = db.products.map(p=>({ id:p.id, nombre:p.nombre, precio1:p.precio1, precio3:p.precio3, precio5:p.precio5, precio7:p.precio7 }));
   db.products.forEach(p=>{
     p.precio1 = Math.round(p.precio1 * (1+pct/100) / 100) * 100;
     p.precio3 = Math.round(p.precio3 * (1+pct/100) / 100) * 100;
     p.precio5 = Math.round(p.precio5 * (1+pct/100) / 100) * 100;
     p.precio7 = Math.round(p.precio7 * (1+pct/100) / 100) * 100;
   });
-  db.priceHistory.push({ tipo:"adecuacion", fecha: todayStr(), pct, nota, productos: db.products.length, snapshotBefore });
+  const snapshotAfter = db.products.map(p=>({ id:p.id, nombre:p.nombre, precio1:p.precio1, precio3:p.precio3, precio5:p.precio5, precio7:p.precio7 }));
+  db.priceHistory.push({ tipo:"adecuacion", fecha: todayStr(), pct, nota, productos: db.products.length, snapshotBefore, snapshotAfter });
   saveLocal(); closeAdecuacionModal(); renderPrecios(); autoSyncIfConnected();
 }
 
