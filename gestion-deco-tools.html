@@ -242,6 +242,7 @@
   <nav class="sidebar">
     <div class="side-btn side-btn-action" onclick="openNewModal()"><span class="icon">➕</span>Nuevo<br>alquiler</div>
     <div class="side-btn active" data-tab="alquileres" onclick="setTab('alquileres')"><span class="icon">📋</span>Alquileres</div>
+    <div class="side-btn" data-tab="clientes" onclick="setTab('clientes')"><span class="icon">👤</span>Clientes</div>
     <div class="side-btn" data-tab="precios" onclick="setTab('precios')"><span class="icon">💲</span>Precios/Stock</div>
     <div class="side-btn" data-tab="calendario" onclick="setTab('calendario')"><span class="icon">📅</span>Calendario</div>
     <div class="side-btn" data-tab="caja" onclick="setTab('caja')"><span class="icon">💰</span>Caja</div>
@@ -295,7 +296,7 @@
     <div class="cal-grid" id="calDow"></div>
     <div class="cal-grid" id="calGrid" style="margin-top:4px;"></div>
     <div class="cal-legend">
-      <span><span class="dot r">R</span> Retiros (unidades)</span>
+      <span><span class="dot r">E</span> Entregas (unidades)</span>
       <span><span class="dot d">D</span> Devoluciones pactadas (unidades)</span>
     </div>
     <div class="cal-detail" id="calDetail"></div>
@@ -310,6 +311,15 @@
     </div>
     <div class="section-title">Movimientos</div>
     <div id="cajaList"></div>
+  </div>
+
+  <!-- ================= VISTA CLIENTES ================= -->
+  <div class="view" id="view-clientes">
+    <div class="actions-bar">
+      <button class="btn btn-primary btn-block" onclick="openClienteModal(null)">+ Nuevo cliente</button>
+    </div>
+    <input type="text" class="search" id="clienteSearchInput" placeholder="Buscar por apellido, nombre o DNI..." oninput="renderClientes()">
+    <div id="clientesList"></div>
   </div>
 
 </main>
@@ -446,6 +456,43 @@
     <div class="modal-btns">
       <button class="btn btn-outline" onclick="closeAdecuacionModal()">Cancelar</button>
       <button class="btn btn-orange" onclick="aplicarAdecuacion()">Aplicar a todo el catálogo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL CLIENTE (nuevo/editar directo) ============ -->
+<div class="modal-bg" id="clienteModalBg">
+  <div class="modal centered">
+    <button class="close-x" onclick="closeClienteModal()">×</button>
+    <h2 id="clienteModalTitle">Nuevo cliente</h2>
+    <input type="hidden" id="cEditId">
+    <div class="field-row">
+      <div class="field">
+        <label>DNI <span class="req">*</span></label>
+        <input type="text" id="cDni" placeholder="Sin puntos">
+      </div>
+      <div class="field">
+        <label>WhatsApp <span class="req">*</span></label>
+        <input type="text" id="cWhatsapp" placeholder="Solo números">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Apellido <span class="req">*</span></label>
+        <input type="text" id="cApellido" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div class="field">
+        <label>Nombre <span class="req">*</span></label>
+        <input type="text" id="cNombre" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+      </div>
+    </div>
+    <div class="field">
+      <label>Domicilio <span class="req">*</span></label>
+      <input type="text" id="cDomicilio" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="closeClienteModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveCliente()">Guardar</button>
     </div>
   </div>
 </div>
@@ -753,6 +800,96 @@ function emitirActa(rentalId){
   win.document.close();
 }
 
+/* ============ CLIENTES ============ */
+function renderClientes(){
+  const search = document.getElementById("clienteSearchInput").value.trim().toLowerCase();
+  let list = db.clients.slice().sort((a,b)=> b.numero - a.numero);
+  if(search){
+    list = list.filter(c=>{
+      const hay = `${c.apellido||""} ${c.nombre||""} ${c.dni||""}`.toLowerCase();
+      return hay.includes(search);
+    });
+  }
+  const cont = document.getElementById("clientesList");
+  if(list.length===0){
+    cont.innerHTML = '<div class="empty">No hay clientes cargados todavía.</div>';
+    return;
+  }
+  cont.innerHTML = list.map(c=>{
+    const cantAlquileres = db.rentals.filter(r=>r.clienteId===c.id).length;
+    const tel = (c.whatsapp||"").replace(/\D/g,"");
+    return `
+    <div class="rental">
+      <div class="row1">
+        <div>
+          <div class="cliente">${escapeHtml(c.apellido||"")}, ${escapeHtml(c.nombre||"")} <span class="clienteN">N° ${c.numero}</span></div>
+          <div class="equipo">DNI ${escapeHtml(c.dni||"")} · ${escapeHtml(c.domicilio||"")}</div>
+        </div>
+      </div>
+      <div class="meta">
+        <span><b>WhatsApp:</b> ${escapeHtml(c.whatsapp||"-")}</span>
+        <span><b>Alquileres:</b> ${cantAlquileres}</span>
+      </div>
+      <div class="btns">
+        ${tel ? `<a class="rbtn call" href="tel:${tel}">📞 Llamar</a>` : ""}
+        ${tel ? `<a class="rbtn wa" href="https://wa.me/${tel}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ""}
+        <button class="mini-btn editar" onclick="openClienteModal('${c.id}')">Editar</button>
+        <button class="mini-btn borrar" onclick="deleteCliente('${c.id}')">Borrar</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+function openClienteModal(id){
+  document.getElementById("cEditId").value = id||"";
+  if(id){
+    const c = db.clients.find(x=>x.id===id);
+    document.getElementById("clienteModalTitle").textContent = "Editar cliente";
+    document.getElementById("cDni").value = c.dni||"";
+    document.getElementById("cWhatsapp").value = c.whatsapp||"";
+    document.getElementById("cApellido").value = c.apellido||"";
+    document.getElementById("cNombre").value = c.nombre||"";
+    document.getElementById("cDomicilio").value = c.domicilio||"";
+  } else {
+    document.getElementById("clienteModalTitle").textContent = "Nuevo cliente";
+    ["cDni","cWhatsapp","cApellido","cNombre","cDomicilio"].forEach(id=>document.getElementById(id).value="");
+  }
+  document.getElementById("clienteModalBg").classList.add("open");
+}
+function closeClienteModal(){ document.getElementById("clienteModalBg").classList.remove("open"); }
+function saveCliente(){
+  const id = document.getElementById("cEditId").value;
+  const dni = document.getElementById("cDni").value.trim();
+  const whatsapp = document.getElementById("cWhatsapp").value.trim();
+  const apellido = document.getElementById("cApellido").value.trim().toUpperCase();
+  const nombre = document.getElementById("cNombre").value.trim().toUpperCase();
+  const domicilio = document.getElementById("cDomicilio").value.trim().toUpperCase();
+  if(!dni || !whatsapp || !apellido || !nombre || !domicilio){
+    alert("Completá DNI, WhatsApp, Apellido, Nombre y Domicilio: son obligatorios.");
+    return;
+  }
+  // evitar DNI duplicado en otro cliente
+  const dup = db.clients.find(c=>c.dni===dni && c.id!==id);
+  if(dup){
+    alert(`Ese DNI ya pertenece a otro cliente: ${dup.apellido}, ${dup.nombre} (N° ${dup.numero}).`);
+    return;
+  }
+  if(id){
+    const c = db.clients.find(x=>x.id===id);
+    c.dni=dni; c.whatsapp=whatsapp; c.apellido=apellido; c.nombre=nombre; c.domicilio=domicilio;
+  } else {
+    const nextNum = db.clients.length ? Math.max(...db.clients.map(c=>c.numero)) + 1 : 1;
+    db.clients.push({ id:"c"+Date.now(), numero: nextNum, dni, apellido, nombre, whatsapp, domicilio });
+  }
+  saveLocal(); closeClienteModal(); renderClientes(); autoSyncIfConnected();
+}
+function deleteCliente(id){
+  const enUso = db.rentals.some(r=>r.clienteId===id);
+  if(enUso){ alert("No se puede borrar: este cliente tiene alquileres registrados (activos o históricos)."); return; }
+  if(!confirm("¿Borrar este cliente?")) return;
+  db.clients = db.clients.filter(x=>x.id!==id);
+  saveLocal(); renderClientes(); autoSyncIfConnected();
+}
+
 function setTab(tab){
   currentTab = tab;
   document.querySelectorAll(".side-btn[data-tab]").forEach(el=>el.classList.toggle("active", el.dataset.tab===tab));
@@ -762,6 +899,7 @@ function setTab(tab){
   if(tab==="precios") renderPrecios();
   if(tab==="calendario") renderCalendario();
   if(tab==="caja") renderCaja();
+  if(tab==="clientes") renderClientes();
   if(tab==="alquileres") render();
 }
 
@@ -1266,13 +1404,13 @@ function renderCalendario(){
   const events = {};
   db.rentals.forEach(r=>{
     if(r.fEntrega){
-      events[r.fEntrega] = events[r.fEntrega] || {retiros:0, devoluciones:0, items:[]};
+      events[r.fEntrega] = events[r.fEntrega] || {entregas:0, devoluciones:0, items:[]};
       const cant = r.items.reduce((s,i)=>s+i.cantidad,0);
-      events[r.fEntrega].retiros += cant;
-      events[r.fEntrega].items.push({tipo:"retiro", rental:r});
+      events[r.fEntrega].entregas += cant;
+      events[r.fEntrega].items.push({tipo:"entrega", rental:r});
     }
     if(r.fDevolucionPactada && !r.devuelto){
-      events[r.fDevolucionPactada] = events[r.fDevolucionPactada] || {retiros:0, devoluciones:0, items:[]};
+      events[r.fDevolucionPactada] = events[r.fDevolucionPactada] || {entregas:0, devoluciones:0, items:[]};
       const cant = r.items.reduce((s,i)=>s+i.cantidad,0);
       events[r.fDevolucionPactada].devoluciones += cant;
       events[r.fDevolucionPactada].items.push({tipo:"devolucion", rental:r});
@@ -1291,7 +1429,7 @@ function renderCalendario(){
     html += `<div class="${cls}" onclick="calSelectDay('${dateStr}')">
       <div class="dnum">${d}</div>
       <div class="dots">
-        ${ev && ev.retiros ? `<span class="dot r">R${ev.retiros}</span>` : ""}
+        ${ev && ev.entregas ? `<span class="dot r">E${ev.entregas}</span>` : ""}
         ${ev && ev.devoluciones ? `<span class="dot d">D${ev.devoluciones}</span>` : ""}
       </div>
     </div>`;
@@ -1301,7 +1439,7 @@ function renderCalendario(){
   const detail = document.getElementById("calDetail");
   if(calSelectedDate && events[calSelectedDate]){
     const ev = events[calSelectedDate];
-    const retiros = ev.items.filter(it=>it.tipo==="retiro");
+    const entregas = ev.items.filter(it=>it.tipo==="entrega");
     const devoluciones = ev.items.filter(it=>it.tipo==="devolucion");
 
     function itemCard(it){
@@ -1325,10 +1463,10 @@ function renderCalendario(){
     <div class="day-summary">
       <div class="dtitle">${fmtFecha(calSelectedDate)}</div>
       <div class="totals">
-        <div class="t r">Retiros<b>${ev.retiros}</b>unidades</div>
+        <div class="t r">Entregas<b>${ev.entregas}</b>unidades</div>
         <div class="t d">Devoluciones<b>${ev.devoluciones}</b>unidades</div>
       </div>
-      ${retiros.length ? `<h4>🚚 Retiros (${retiros.length})</h4>` + retiros.map(itemCard).join("") : ""}
+      ${entregas.length ? `<h4>🚚 Entregas (${entregas.length})</h4>` + entregas.map(itemCard).join("") : ""}
       ${devoluciones.length ? `<h4>↩ Devoluciones pactadas (${devoluciones.length})</h4>` + devoluciones.map(itemCard).join("") : ""}
     </div>`;
   } else if(calSelectedDate){
