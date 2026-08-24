@@ -87,16 +87,6 @@
   .mini-btn.borrar{background:#fff; color:var(--red); border:1px solid var(--red);}
   .empty{text-align:center; color:var(--gray); font-size:13px; padding:30px 10px;}
 
-  /* Recordatorios */
-  .reminders{margin-bottom:14px;}
-  .reminder-card{
-    background:#FFF4E8; border:1px solid var(--orange); border-radius:10px;
-    padding:10px 12px; margin-bottom:8px;
-  }
-  .reminder-card .rtitle{font-size:12px; font-weight:700; color:var(--orange); margin-bottom:4px;}
-  .reminder-card .rcliente{font-size:14px; font-weight:700; color:var(--navy);}
-  .reminder-card .requipo{font-size:12px; color:#333; margin:2px 0 8px;}
-  .reminder-card .rbtns{display:flex; gap:6px;}
   .rbtn{border:none; border-radius:6px; padding:6px 10px; font-size:11px; font-weight:600; cursor:pointer; text-decoration:none; display:inline-block;}
   .rbtn.call{background:var(--navy); color:#fff;}
   .rbtn.wa{background:#25D366; color:#fff;}
@@ -260,14 +250,10 @@
 
   <!-- ================= VISTA ALQUILERES ================= -->
   <div class="view active" id="view-alquileres">
-    <div class="reminders" id="remindersBox"></div>
     <div class="cards">
       <div class="card"><div class="num" id="statActivos">0</div><div class="lbl">Activos</div></div>
       <div class="card alert"><div class="num" id="statAtrasados">0</div><div class="lbl">Atrasados</div></div>
       <div class="card"><div class="num" id="statMes">0</div><div class="lbl">Este mes</div></div>
-    </div>
-    <div class="actions-bar">
-      <button class="btn btn-outline btn-block" onclick="exportarRecordatoriosICS()" title="Descargar recordatorios para tu calendario del celular">📅 Recordatorios</button>
     </div>
     <input type="text" class="search" id="searchInput" placeholder="Buscar por cliente, DNI o producto..." oninput="render()">
     <div id="list"></div>
@@ -462,7 +448,7 @@
 
 <!-- ============ MODAL HISTORIAL DE CLIENTE ============ -->
 <div class="modal-bg" id="historialModalBg">
-  <div class="modal">
+  <div class="modal centered">
     <button class="close-x" onclick="closeHistorialModal()">×</button>
     <h2 id="historialModalTitle">Historial de alquileres</h2>
     <div id="historialList"></div>
@@ -1005,82 +991,6 @@ function render(){
   document.getElementById("statAtrasados").textContent = db.rentals.filter(r=>estadoDe(r)==="atrasado").length;
   const thisMonth = todayStr().slice(0,7);
   document.getElementById("statMes").textContent = db.rentals.filter(r=> (r.fEntrega||"").slice(0,7)===thisMonth).length;
-  renderReminders();
-}
-/* ============ RECORDATORIOS ============ */
-function tomorrowStr(){
-  const d = new Date();
-  d.setDate(d.getDate()+1);
-  return d.toISOString().slice(0,10);
-}
-function renderReminders(){
-  const box = document.getElementById("remindersBox");
-  const manana = tomorrowStr();
-  const pendientes = db.rentals.filter(r=>!r.devuelto && r.fDevolucionPactada===manana);
-  if(pendientes.length===0){ box.innerHTML = ""; return; }
-  box.innerHTML = pendientes.map(r=>{
-    const cli = db.clients.find(c=>c.id===r.clienteId) || {};
-    const productosTxt = r.items.map(i=>`${productoNombre(i.productId)} x${i.cantidad}`).join(", ");
-    const tel = (cli.whatsapp||"").replace(/\D/g,"");
-    return `
-    <div class="reminder-card">
-      <div class="rtitle">⏰ DEVOLUCIÓN MAÑANA — retirar equipo</div>
-      <div class="rcliente">${escapeHtml(cli.apellido||"")}, ${escapeHtml(cli.nombre||"")}</div>
-      <div class="requipo">${escapeHtml(productosTxt)} · ${escapeHtml(cli.domicilio||"")}</div>
-      <div class="rbtns">
-        ${tel ? `<a class="rbtn call" href="tel:${tel}">📞 Llamar</a>` : ""}
-        ${tel ? `<a class="rbtn wa" href="https://wa.me/${tel}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ""}
-      </div>
-    </div>`;
-  }).join("");
-}
-
-/* ============ EXPORTAR RECORDATORIOS A CALENDARIO (.ics) ============ */
-function icsEscape(s){ return String(s).replace(/[,;]/g,"\\$&").replace(/\n/g,"\\n"); }
-function icsDate(dateStr){ return dateStr.replace(/-/g,""); }
-function exportarRecordatoriosICS(){
-  const activos = db.rentals.filter(r=>!r.devuelto && r.fDevolucionPactada);
-  if(activos.length===0){ alert("No hay alquileres activos con fecha de devolución pactada."); return; }
-
-  let ics = [
-    "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Deco-Tools//Recordatorios//ES","CALSCALE:GREGORIAN"
-  ];
-  activos.forEach(r=>{
-    const cli = db.clients.find(c=>c.id===r.clienteId) || {};
-    const productosTxt = r.items.map(i=>`${productoNombre(i.productId)} x${i.cantidad}`).join(", ");
-    // evento el día pactado de devolución, con alarma el día previo (24hs antes) y el mismo día
-    const uid = "deco-tools-"+r.id+"@decotools";
-    const summary = `Retirar equipo: ${cli.apellido||""}, ${cli.nombre||""}`;
-    const desc = `${productosTxt} - ${cli.domicilio||""} - Tel: ${cli.whatsapp||""}`;
-    ics.push(
-      "BEGIN:VEVENT",
-      "UID:"+uid,
-      "DTSTAMP:"+icsDate(todayStr())+"T090000Z",
-      "DTSTART;VALUE=DATE:"+icsDate(r.fDevolucionPactada),
-      "DTEND;VALUE=DATE:"+icsDate(r.fDevolucionPactada),
-      "SUMMARY:"+icsEscape(summary),
-      "DESCRIPTION:"+icsEscape(desc),
-      "BEGIN:VALARM",
-      "ACTION:DISPLAY",
-      "DESCRIPTION:Recordatorio: retirar equipo mañana",
-      "TRIGGER:-P1D",
-      "END:VALARM",
-      "BEGIN:VALARM",
-      "ACTION:DISPLAY",
-      "DESCRIPTION:Recordatorio: retirar equipo hoy",
-      "TRIGGER:PT9H",
-      "END:VALARM",
-      "END:VEVENT"
-    );
-  });
-  ics.push("END:VCALENDAR");
-
-  const blob = new Blob([ics.join("\r\n")], { type:"text/calendar;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = "deco-tools-recordatorios.ics";
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
 function setFilter(f){
