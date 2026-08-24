@@ -56,6 +56,18 @@
   .filters{display:flex; gap:6px; margin-bottom:12px; overflow-x:auto; padding-bottom:2px;}
   .filter-chip{border:1px solid #d8d7d4; background:#fff; border-radius:20px; padding:6px 12px; font-size:12px; white-space:nowrap; cursor:pointer; color:var(--gray);}
   .filter-chip.active{background:var(--navy); color:#fff; border-color:var(--navy);}
+
+  .sidebar-filters{
+    width:78px; flex-shrink:0; background:#E7E5E1; min-height:calc(100vh - 66px);
+    display:flex; flex-direction:column; padding-top:14px; border-right:1px solid #d8d6d2;
+  }
+  .sidebar-filters.hidden{display:none;}
+  .sidebar-filters .sf-title{font-size:9px; text-transform:uppercase; letter-spacing:.5px; color:var(--gray); text-align:center; margin-bottom:8px; font-weight:700;}
+  .filter-side-btn{
+    text-align:center; padding:10px 4px; font-size:11px; font-weight:600; color:var(--gray);
+    cursor:pointer; border-left:3px solid transparent;
+  }
+  .filter-side-btn.active{color:var(--navy); background:#fff; border-left-color:var(--orange);}
   .search{width:100%; padding:10px 12px; border-radius:8px; border:1px solid #d8d7d4; font-size:14px; margin-bottom:12px;}
 
   .rental{background:#fff; border-radius:10px; padding:12px 14px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,.08); border-left:5px solid var(--navy);}
@@ -100,6 +112,21 @@
   .prod-precios{display:flex; gap:14px; margin-top:8px; font-size:12px; color:#333;}
   .prod-precios div b{display:block; color:var(--gray); font-weight:400; font-size:10px;}
   .prod-card .btns{margin-top:8px; display:flex; gap:6px;}
+
+  /* Tabla compacta de catálogo */
+  .price-table-wrap{background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.08); overflow-x:auto;}
+  table.price-table{width:100%; border-collapse:collapse; font-size:11.5px; min-width:480px;}
+  table.price-table th{background:var(--navy); color:#fff; text-align:left; padding:8px 6px; font-size:10.5px; font-weight:700; white-space:nowrap;}
+  table.price-table th.num, table.price-table td.num{text-align:right;}
+  table.price-table td{padding:7px 6px; border-bottom:1px solid #eee; vertical-align:middle;}
+  table.price-table tr:last-child td{border-bottom:none;}
+  table.price-table tr:nth-child(even) td{background:#FAFAF9;}
+  table.price-table .pnombre{font-weight:700; color:var(--navy); white-space:nowrap;}
+  table.price-table .pstock{font-weight:700; color:var(--green);}
+  table.price-table .pstock.agotado{color:var(--red);}
+  table.price-table .picons{white-space:nowrap; text-align:center;}
+  table.price-table .picon-btn{border:none; background:none; font-size:14px; cursor:pointer; padding:2px 4px;}
+  .price-table-hint{font-size:10.5px; color:var(--gray); padding:6px 2px 0; text-align:right;}
 
   .history-item{background:#fff; border-radius:8px; padding:10px 12px; margin-bottom:6px; font-size:12px; box-shadow:0 1px 3px rgba(0,0,0,.06);}
   .history-item .pct{font-weight:700; color:var(--orange);}
@@ -220,6 +247,14 @@
     <div class="side-btn" data-tab="caja" onclick="setTab('caja')"><span class="icon">💰</span>Caja</div>
   </nav>
 
+  <nav class="sidebar-filters" id="filterSidebar">
+    <div class="sf-title">Filtro</div>
+    <div class="filter-side-btn active" data-f="todos" onclick="setFilter('todos')">Todos</div>
+    <div class="filter-side-btn" data-f="activo" onclick="setFilter('activo')">Activos</div>
+    <div class="filter-side-btn" data-f="atrasado" onclick="setFilter('atrasado')">Atrasados</div>
+    <div class="filter-side-btn" data-f="devuelto" onclick="setFilter('devuelto')">Devueltos</div>
+  </nav>
+
 <main>
 
   <!-- ================= VISTA ALQUILERES ================= -->
@@ -234,12 +269,6 @@
       <button class="btn btn-outline btn-block" onclick="exportarRecordatoriosICS()" title="Descargar recordatorios para tu calendario del celular">📅 Recordatorios</button>
     </div>
     <input type="text" class="search" id="searchInput" placeholder="Buscar por cliente, DNI o producto..." oninput="render()">
-    <div class="filters">
-      <div class="filter-chip active" data-f="todos" onclick="setFilter('todos')">Todos</div>
-      <div class="filter-chip" data-f="activo" onclick="setFilter('activo')">Activos</div>
-      <div class="filter-chip" data-f="atrasado" onclick="setFilter('atrasado')">Atrasados</div>
-      <div class="filter-chip" data-f="devuelto" onclick="setFilter('devuelto')">Devueltos</div>
-    </div>
     <div id="list"></div>
   </div>
 
@@ -726,9 +755,10 @@ function emitirActa(rentalId){
 
 function setTab(tab){
   currentTab = tab;
-  document.querySelectorAll(".side-btn").forEach(el=>el.classList.toggle("active", el.dataset.tab===tab));
+  document.querySelectorAll(".side-btn[data-tab]").forEach(el=>el.classList.toggle("active", el.dataset.tab===tab));
   document.querySelectorAll(".view").forEach(el=>el.classList.remove("active"));
   document.getElementById("view-"+tab).classList.add("active");
+  document.getElementById("filterSidebar").classList.toggle("hidden", tab!=="alquileres");
   if(tab==="precios") renderPrecios();
   if(tab==="calendario") renderCalendario();
   if(tab==="caja") renderCaja();
@@ -873,7 +903,7 @@ function exportarRecordatoriosICS(){
 
 function setFilter(f){
   currentFilter = f;
-  document.querySelectorAll(".filter-chip").forEach(el=>el.classList.toggle("active", el.dataset.f===f));
+  document.querySelectorAll(".filter-side-btn").forEach(el=>el.classList.toggle("active", el.dataset.f===f));
   render();
 }
 
@@ -1111,25 +1141,32 @@ function deleteRental(id){
 /* ============ PRECIOS / STOCK ============ */
 function renderPrecios(){
   const cont = document.getElementById("productList");
-  cont.innerHTML = db.products.map(p=>{
+  const rows = db.products.map(p=>{
     const disp = disponible(p.id, null);
     return `
-    <div class="prod-card">
-      <div class="row1">
-        <div class="nombre">${escapeHtml(p.nombre)}</div>
-        <div class="stock ${disp<=0?'agotado':''}">Disponible: <b>${disp}</b> / ${p.stock}</div>
-      </div>
-      <div class="prod-precios">
-        <div><b>1 día</b>${fmtMoney(p.precio1)}</div>
-        <div><b>3 días</b>${fmtMoney(p.precio3)}</div>
-        <div><b>Semana</b>${fmtMoney(p.precio7)}</div>
-      </div>
-      <div class="btns">
-        <button class="mini-btn editar" onclick="openProductModal('${p.id}')">Editar</button>
-        <button class="mini-btn borrar" onclick="deleteProduct('${p.id}')">Borrar</button>
-      </div>
-    </div>`;
+    <tr>
+      <td class="pnombre">${escapeHtml(p.nombre)}</td>
+      <td class="num">${fmtMoney(p.precio1)}</td>
+      <td class="num">${fmtMoney(p.precio3)}</td>
+      <td class="num">${fmtMoney(p.precio7)}</td>
+      <td class="num pstock ${disp<=0?'agotado':''}">${disp}/${p.stock}</td>
+      <td class="picons">
+        <button class="picon-btn" title="Editar" onclick="openProductModal('${p.id}')">✏️</button>
+        <button class="picon-btn" title="Borrar" onclick="deleteProduct('${p.id}')">🗑️</button>
+      </td>
+    </tr>`;
   }).join("");
+  cont.innerHTML = `
+    <div class="price-table-wrap">
+      <table class="price-table">
+        <thead><tr>
+          <th>Producto</th><th class="num">1 día</th><th class="num">3 días</th><th class="num">Semana</th><th class="num">Disp./Stock</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="price-table-hint">Deslizá hacia los costados para ver toda la tabla ⇆</div>
+  `;
 
   const hist = document.getElementById("historyList");
   if(db.priceHistory.length===0){
