@@ -242,6 +242,7 @@
     <div class="side-btn active" data-tab="alquileres" onclick="setTab('alquileres')"><span class="icon">📋</span>Pedidos</div>
     <div class="side-btn" data-tab="clientes" onclick="setTab('clientes')"><span class="icon">👤</span>Clientes</div>
     <div class="side-btn" data-tab="precios" onclick="setTab('precios')"><span class="icon">💲</span>Precios/Stock</div>
+    <div class="side-btn" data-tab="historial" onclick="setTab('historial')"><span class="icon">📜</span>Historial precios</div>
     <div class="side-btn" data-tab="calendario" onclick="setTab('calendario')"><span class="icon">📅</span>Calendario</div>
     <div class="side-btn" data-tab="caja" onclick="setTab('caja')"><span class="icon">💰</span>Caja</div>
   </nav>
@@ -295,8 +296,11 @@
 
     <div class="section-title">Catálogo</div>
     <div id="productList"></div>
+  </div>
 
-    <div class="section-title">Historial de adecuaciones</div>
+  <!-- ================= VISTA HISTORIAL DE ADECUACIONES ================= -->
+  <div class="view" id="view-historial">
+    <div class="section-title">Historial de adecuaciones de precios</div>
     <div id="historyList"></div>
   </div>
 
@@ -1052,6 +1056,7 @@ function setTab(tab){
   document.getElementById("view-"+tab).classList.add("active");
   document.getElementById("filterSidebar").classList.toggle("hidden", tab!=="alquileres");
   if(tab==="precios") renderPrecios();
+  if(tab==="historial") renderHistorialAdecuaciones();
   if(tab==="calendario") renderCalendario();
   if(tab==="caja") renderCaja();
   if(tab==="clientes") renderClientes();
@@ -1394,7 +1399,11 @@ function renderPrecios(){
     <div class="price-table-hint">Deslizá hacia los costados para ver toda la tabla ⇆</div>
   `;
 
+  renderHistorialAdecuaciones();
+}
+function renderHistorialAdecuaciones(){
   const hist = document.getElementById("historyList");
+  if(!hist) return;
   if(db.priceHistory.length===0){
     hist.innerHTML = '<div class="empty">Todavía no se aplicaron adecuaciones de precios.</div>';
   } else {
