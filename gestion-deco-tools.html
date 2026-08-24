@@ -258,6 +258,7 @@
   <nav class="sidebar-filters hidden" id="precioActionsSidebar">
     <div class="sf-title">Acciones</div>
     <div class="filter-side-btn" onclick="openAdecuacionModal()">% Adecuación</div>
+    <div class="filter-side-btn" onclick="openReglaModal()">📐 Regla de tramos</div>
     <div class="filter-side-btn" onclick="openProductModal(null)">+ Nuevo producto</div>
     <div class="filter-side-btn" onclick="restablecerTodoOriginal()">↺ Restablecer todo</div>
     <div class="filter-side-btn" onclick="document.getElementById('excelFileInput').click()">📥 Importar Excel</div>
@@ -280,17 +281,6 @@
 
   <!-- ================= VISTA PRECIOS / STOCK ================= -->
   <div class="view" id="view-precios">
-    <div class="section-title">Regla de descuento por tramo</div>
-    <div class="rule-box">
-      <p class="rule-hint">Define cuánto más barato (respecto del precio de 1 día) queda cada tramo. Se aplica a todo el catálogo con un solo toque, sin cargar producto por producto.</p>
-      <div class="rule-fields">
-        <div class="field"><label>3 días</label><input type="number" id="ruleD3"> %</div>
-        <div class="field"><label>5 días</label><input type="number" id="ruleD5"> %</div>
-        <div class="field"><label>7 días</label><input type="number" id="ruleD7"> %</div>
-      </div>
-      <button class="btn btn-primary btn-block" onclick="aplicarReglaTramos()">Aplicar regla a todo el catálogo</button>
-    </div>
-
     <div class="section-title">Catálogo</div>
     <div id="productList"></div>
   </div>
@@ -525,6 +515,24 @@
     <div class="modal-btns">
       <button class="btn btn-outline" onclick="closeClienteModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="saveCliente()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL REGLA DE TRAMOS ============ -->
+<div class="modal-bg" id="reglaModalBg">
+  <div class="modal centered">
+    <button class="close-x" onclick="closeReglaModal()">×</button>
+    <h2>Regla de descuento por tramo</h2>
+    <p class="rule-hint">Define cuánto más barato (respecto del precio de 1 día) queda cada tramo. Se aplica a todo el catálogo con un solo toque, sin cargar producto por producto.</p>
+    <div class="rule-fields">
+      <div class="field"><label>3 días</label><input type="number" id="ruleD3"> %</div>
+      <div class="field"><label>5 días</label><input type="number" id="ruleD5"> %</div>
+      <div class="field"><label>7 días</label><input type="number" id="ruleD7"> %</div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="closeReglaModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="aplicarReglaTramos()">Aplicar a todo el catálogo</button>
     </div>
   </div>
 </div>
@@ -1361,10 +1369,6 @@ function deleteRental(id){
 
 /* ============ PRECIOS / STOCK ============ */
 function renderPrecios(){
-  document.getElementById("ruleD3").value = db.tierDiscounts.d3;
-  document.getElementById("ruleD5").value = db.tierDiscounts.d5;
-  document.getElementById("ruleD7").value = db.tierDiscounts.d7;
-
   const cont = document.getElementById("productList");
   const rows = db.products.map(p=>{
     const disp = disponible(p.id, null);
@@ -1453,6 +1457,13 @@ function deshacerAdecuacion(idx){
   db.priceHistory.splice(idx,1);
   saveLocal(); renderPrecios(); autoSyncIfConnected();
 }
+function openReglaModal(){
+  document.getElementById("ruleD3").value = db.tierDiscounts.d3;
+  document.getElementById("ruleD5").value = db.tierDiscounts.d5;
+  document.getElementById("ruleD7").value = db.tierDiscounts.d7;
+  document.getElementById("reglaModalBg").classList.add("open");
+}
+function closeReglaModal(){ document.getElementById("reglaModalBg").classList.remove("open"); }
 function aplicarReglaTramos(){
   const d3 = Number(document.getElementById("ruleD3").value)||0;
   const d5 = Number(document.getElementById("ruleD5").value)||0;
@@ -1465,7 +1476,7 @@ function aplicarReglaTramos(){
     p.precio7 = Math.round(base*7*(1-d7/100)/100)*100;
   });
   db.priceHistory.push({ tipo:"regla", fecha: todayStr(), nota:`Regla de tramos: 3d -${d3}%, 5d -${d5}%, 7d -${d7}% (sobre el precio de 1 día)` });
-  saveLocal(); renderPrecios(); autoSyncIfConnected();
+  saveLocal(); closeReglaModal(); renderPrecios(); autoSyncIfConnected();
 }
 
 /* ============ IMPORTAR / EXPORTAR CATÁLOGO EN EXCEL ============ */
