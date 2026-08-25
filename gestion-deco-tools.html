@@ -273,6 +273,11 @@
     <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarExcel(this.files[0])">
   </nav>
 
+  <nav class="sidebar-filters hidden" id="clientesActionsSidebar">
+    <div class="sf-title">Acciones</div>
+    <div class="filter-side-btn" onclick="openClienteModal(null)">+ Nuevo cliente</div>
+  </nav>
+
 <main>
 
   <!-- ================= VISTA ALQUILERES ================= -->
@@ -330,9 +335,6 @@
 
   <!-- ================= VISTA CLIENTES ================= -->
   <div class="view" id="view-clientes">
-    <div class="actions-bar">
-      <button class="btn btn-primary btn-block" onclick="openClienteModal(null)">+ Nuevo cliente</button>
-    </div>
     <input type="text" class="search" id="clienteSearchInput" placeholder="Buscar por apellido, nombre o DNI..." oninput="renderClientes()">
     <div id="clientesList"></div>
   </div>
@@ -1071,6 +1073,7 @@ function setTab(tab){
   document.getElementById("view-"+tab).classList.add("active");
   document.getElementById("filterSidebar").classList.toggle("hidden", tab!=="alquileres");
   document.getElementById("precioActionsSidebar").classList.toggle("hidden", tab!=="precios");
+  document.getElementById("clientesActionsSidebar").classList.toggle("hidden", tab!=="clientes");
   if(tab==="precios") renderPrecios();
   if(tab==="historial") renderHistorialAdecuaciones();
   if(tab==="calendario") renderCalendario();
