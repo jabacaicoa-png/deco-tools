@@ -294,7 +294,10 @@
 
   <!-- ================= VISTA HISTORIAL DE ADECUACIONES ================= -->
   <div class="view" id="view-historial">
-    <div class="section-title">Historial de adecuaciones de precios</div>
+    <div class="section-title">
+      Historial de adecuaciones de precios
+      <button class="mini-btn borrar" onclick="vaciarHistorialPrecios()">🗑️ Vaciar historial</button>
+    </div>
     <div id="historyList"></div>
   </div>
 
@@ -1471,6 +1474,12 @@ function toggleHistDetalle(id, btn){
   const abierto = el.style.display !== "none";
   el.style.display = abierto ? "none" : "block";
   if(btn) btn.textContent = abierto ? "Ver detalle" : "Ocultar detalle";
+}
+function vaciarHistorialPrecios(){
+  if(db.priceHistory.length===0){ alert("El historial ya está vacío."); return; }
+  if(!confirm("¿Vaciar todo el historial de adecuaciones de precios? Esta acción no se puede deshacer.")) return;
+  db.priceHistory = [];
+  saveLocal(); renderHistorialAdecuaciones(); autoSyncIfConnected();
 }
 function restablecerPrecioOriginal(id){
   const p = db.products.find(x=>x.id===id);
