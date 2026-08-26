@@ -386,6 +386,10 @@
           <label>Domicilio <span class="req">*</span></label>
           <input type="text" id="fDomicilio" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
         </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="fMail" placeholder="Opcional">
+        </div>
       </div>
 
       <!-- PASO 2: PRODUCTOS -->
@@ -523,6 +527,10 @@
     <div class="field">
       <label>Domicilio <span class="req">*</span></label>
       <input type="text" id="cDomicilio" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+    </div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="cMail" placeholder="Opcional">
     </div>
     <div class="modal-btns">
       <button class="btn btn-outline" onclick="closeClienteModal()">Cancelar</button>
@@ -948,6 +956,7 @@ function renderClientes(){
         <span><b>DNI:</b> ${escapeHtml(c.dni||"")}</span>
         <span><b>Domicilio:</b> ${escapeHtml(c.domicilio||"")}</span>
         <span><b>Teléfono:</b> ${escapeHtml(c.whatsapp||"-")}</span>
+        ${c.mail ? `<span><b>Email:</b> ${escapeHtml(c.mail)}</span>` : ""}
         <span><b>Pedidos:</b> ${cantPedidos} (${activos} activo/s)</span>
         <span><b>Detalle del último pedido:</b> ${escapeHtml(detalleUltimo)}</span>
       </div>
@@ -1012,9 +1021,10 @@ function openClienteModal(id){
     document.getElementById("cApellido").value = c.apellido||"";
     document.getElementById("cNombre").value = c.nombre||"";
     document.getElementById("cDomicilio").value = c.domicilio||"";
+    document.getElementById("cMail").value = c.mail||"";
   } else {
     document.getElementById("clienteModalTitle").textContent = "Nuevo cliente";
-    ["cDni","cWhatsapp","cApellido","cNombre","cDomicilio"].forEach(id=>document.getElementById(id).value="");
+    ["cDni","cWhatsapp","cApellido","cNombre","cDomicilio","cMail"].forEach(id=>document.getElementById(id).value="");
   }
   document.getElementById("clienteModalBg").classList.add("open");
 }
@@ -1039,6 +1049,7 @@ function saveCliente(){
   const apellido = document.getElementById("cApellido").value.trim().toUpperCase();
   const nombre = document.getElementById("cNombre").value.trim().toUpperCase();
   const domicilio = document.getElementById("cDomicilio").value.trim().toUpperCase();
+  const mail = document.getElementById("cMail").value.trim();
   if(!dni || !whatsapp || !apellido || !nombre || !domicilio){
     alert("Completá DNI, WhatsApp, Apellido, Nombre y Domicilio: son obligatorios.");
     return;
@@ -1051,10 +1062,10 @@ function saveCliente(){
   }
   if(id){
     const c = db.clients.find(x=>x.id===id);
-    c.dni=dni; c.whatsapp=whatsapp; c.apellido=apellido; c.nombre=nombre; c.domicilio=domicilio;
+    c.dni=dni; c.whatsapp=whatsapp; c.apellido=apellido; c.nombre=nombre; c.domicilio=domicilio; c.mail=mail;
   } else {
     const nextNum = db.clients.length ? Math.max(...db.clients.map(c=>c.numero)) + 1 : 1;
-    db.clients.push({ id:"c"+Date.now(), numero: nextNum, dni, apellido, nombre, whatsapp, domicilio });
+    db.clients.push({ id:"c"+Date.now(), numero: nextNum, dni, apellido, nombre, whatsapp, domicilio, mail });
   }
   saveLocal(); closeClienteModal(); renderClientes(); autoSyncIfConnected();
 }
@@ -1206,6 +1217,7 @@ function buscarClientePorDni(){
     document.getElementById("fNombre").value = cli.nombre;
     document.getElementById("fWhatsapp").value = cli.whatsapp;
     document.getElementById("fDomicilio").value = cli.domicilio;
+    document.getElementById("fMail").value = cli.mail||"";
     hint.textContent = `Cliente existente N° ${cli.numero}: se completaron sus datos automáticamente.`;
     hint.classList.add("show");
   } else {
@@ -1215,7 +1227,7 @@ function buscarClientePorDni(){
 function openNewModal(){
   document.getElementById("modalTitle").textContent = "Nuevo pedido";
   document.getElementById("editId").value = "";
-  ["fDni","fWhatsapp","fApellido","fNombre","fDomicilio","fObs"].forEach(id=>document.getElementById(id).value="");
+  ["fDni","fWhatsapp","fApellido","fNombre","fDomicilio","fMail","fObs"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("fPrecio").value = "";
   document.getElementById("fPrecio").dataset.touched = "";
   document.getElementById("fDeposito").value = "";
@@ -1239,6 +1251,7 @@ function editRental(id){
   document.getElementById("fApellido").value = cli.apellido||"";
   document.getElementById("fNombre").value = cli.nombre||"";
   document.getElementById("fDomicilio").value = cli.domicilio||"";
+  document.getElementById("fMail").value = cli.mail||"";
   document.getElementById("clienteHint").classList.remove("show");
   clienteEncontradoId = cli.id||null;
   document.getElementById("fEntrega").value = r.fEntrega||"";
@@ -1322,6 +1335,7 @@ function saveRental(){
   const apellido = document.getElementById("fApellido").value.trim().toUpperCase();
   const nombre = document.getElementById("fNombre").value.trim().toUpperCase();
   const domicilio = document.getElementById("fDomicilio").value.trim().toUpperCase();
+  const mail = document.getElementById("fMail").value.trim();
   if(!dni || !whatsapp || !apellido || !nombre || !domicilio){
     alert("Completá DNI, WhatsApp, Apellido, Nombre y Domicilio: son obligatorios.");
     return;
@@ -1343,10 +1357,10 @@ function saveRental(){
   let cliente = db.clients.find(c=>c.dni===dni);
   if(cliente){
     cliente.apellido = apellido; cliente.nombre = nombre;
-    cliente.whatsapp = whatsapp; cliente.domicilio = domicilio;
+    cliente.whatsapp = whatsapp; cliente.domicilio = domicilio; cliente.mail = mail;
   } else {
     const nextNum = db.clients.length ? Math.max(...db.clients.map(c=>c.numero)) + 1 : 1;
-    cliente = { id:"c"+Date.now(), numero: nextNum, dni, apellido, nombre, whatsapp, domicilio };
+    cliente = { id:"c"+Date.now(), numero: nextNum, dni, apellido, nombre, whatsapp, domicilio, mail };
     db.clients.push(cliente);
   }
 
