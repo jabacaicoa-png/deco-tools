@@ -276,6 +276,7 @@
   <nav class="sidebar-filters hidden" id="clientesActionsSidebar">
     <div class="sf-title">Acciones</div>
     <div class="filter-side-btn" onclick="openClienteModal(null)">+ Nuevo cliente</div>
+    <div class="filter-side-btn" onclick="renumerarClientes()">🔄 Renumerar</div>
   </nav>
 
 <main>
@@ -361,6 +362,11 @@
     <div class="wizard-body" id="wizardBody">
       <!-- PASO 1: CLIENTE -->
       <div class="wizard-step" data-step="1">
+        <button class="btn btn-outline btn-block" style="margin-bottom:12px;" onclick="togglePegarDatos('pedido')">📋 Pegar datos de WhatsApp</button>
+        <div id="pegarDatosBox-pedido" style="display:none; margin-bottom:14px;">
+          <textarea id="pegarDatosText-pedido" rows="5" placeholder="Pegá acá el mensaje que te mandó el cliente por WhatsApp..." style="width:100%; padding:9px 10px; border-radius:7px; border:1px solid #d8d7d4; font-size:13px; font-family:inherit;"></textarea>
+          <button class="btn btn-primary btn-block" style="margin-top:8px;" onclick="autocompletarDesdeTexto('pedido')">Autocompletar campos</button>
+        </div>
         <div class="field-row">
           <div class="field">
             <label>DNI <span class="req">*</span></label>
@@ -503,6 +509,13 @@
     <button class="close-x" onclick="closeClienteModal()">×</button>
     <h2 id="clienteModalTitle">Nuevo cliente</h2>
     <input type="hidden" id="cEditId">
+
+    <button class="btn btn-outline btn-block" style="margin-bottom:12px;" onclick="togglePegarDatos('cliente')">📋 Pegar datos de WhatsApp</button>
+    <div id="pegarDatosBox-cliente" style="display:none; margin-bottom:14px;">
+      <textarea id="pegarDatosText-cliente" rows="5" placeholder="Pegá acá el mensaje que te mandó el cliente por WhatsApp..." style="width:100%; padding:9px 10px; border-radius:7px; border:1px solid #d8d7d4; font-size:13px; font-family:inherit;"></textarea>
+      <button class="btn btn-primary btn-block" style="margin-top:8px;" onclick="autocompletarDesdeTexto('cliente')">Autocompletar campos</button>
+    </div>
+
     <div class="field-row">
       <div class="field">
         <label>DNI <span class="req">*</span></label>
@@ -732,6 +745,10 @@ function tierPrecio(prod, dias){
   const diaria = p7/7;
   return Math.round(p7 + (dias-7)*diaria);
 }
+function clienteCodigo(numero){
+  if(numero===undefined || numero===null || numero==="") return "-";
+  return "CL" + String(100 + Number(numero)).padStart(5,"0");
+}
 function estadoDe(r){
   if(r.devuelto) return "devuelto";
   if(r.fDevolucionPactada && r.fDevolucionPactada < todayStr()) return "atrasado";
@@ -948,7 +965,7 @@ function renderClientes(){
     <div class="rental${c.suspendido ? ' devuelto' : ''}">
       <div class="row1">
         <div>
-          <div class="cliente">N° ${c.numero} ${c.suspendido ? '<span class="badge devuelto">Suspendido</span>' : ''}</div>
+          <div class="cliente">${clienteCodigo(c.numero)} ${c.suspendido ? '<span class="badge devuelto">Suspendido</span>' : ''}</div>
         </div>
       </div>
       <div class="meta" style="flex-direction:column; align-items:flex-start; gap:4px;">
@@ -966,6 +983,7 @@ function renderClientes(){
         <button class="mini-btn editar" onclick="openHistorialModal('${c.id}')">📜 Historial</button>
         <button class="mini-btn editar" onclick="openClienteModal('${c.id}')">Editar</button>
         <button class="mini-btn ${c.suspendido ? 'devolver' : 'borrar'}" onclick="toggleSuspenderCliente('${c.id}')">${c.suspendido ? '✓ Reactivar' : '⏸ Suspender'}</button>
+        <button class="mini-btn borrar" onclick="deleteCliente('${c.id}')">🗑️ Borrar</button>
       </div>
     </div>`;
   }).join("");
@@ -1028,6 +1046,45 @@ function openClienteModal(id){
   }
   document.getElementById("clienteModalBg").classList.add("open");
 }
+/* ============ PEGAR DATOS DESDE WHATSAPP ============ */
+function togglePegarDatos(context){
+  const box = document.getElementById("pegarDatosBox-"+context);
+  box.style.display = box.style.display === "none" ? "block" : "none";
+}
+function parseDatosCliente(texto){
+  function extraer(regex){
+    const m = texto.match(regex);
+    return m ? m[1].trim() : "";
+  }
+  return {
+    apellido: extraer(/apellido\s*:\s*(.+)/i),
+    nombre: extraer(/nombre\s*:\s*(.+)/i),
+    dni: extraer(/dni\s*:\s*(.+)/i),
+    domicilio: extraer(/domicilio\s*:\s*(.+)/i),
+    whatsapp: extraer(/whatsapp\s*:\s*(.+)/i),
+    mail: extraer(/(?:email|mail|correo)\s*:\s*(.+)/i),
+  };
+}
+function autocompletarDesdeTexto(context){
+  const texto = document.getElementById("pegarDatosText-"+context).value;
+  if(!texto.trim()){ alert("Pegá primero el mensaje del cliente."); return; }
+  const d = parseDatosCliente(texto);
+  if(!d.apellido && !d.nombre && !d.dni){
+    alert("No pude reconocer los datos. Verificá que el texto tenga líneas tipo \"Apellido: ...\", \"DNI: ...\", etc.");
+    return;
+  }
+  const prefix = context === "cliente" ? "c" : "f";
+  if(d.apellido) document.getElementById(prefix+"Apellido").value = d.apellido.toUpperCase();
+  if(d.nombre) document.getElementById(prefix+"Nombre").value = d.nombre.toUpperCase();
+  if(d.dni) document.getElementById(prefix+"Dni").value = d.dni;
+  if(d.domicilio) document.getElementById(prefix+"Domicilio").value = d.domicilio.toUpperCase();
+  if(d.whatsapp) document.getElementById(prefix+"Whatsapp").value = d.whatsapp;
+  if(d.mail) document.getElementById(prefix+"Mail").value = d.mail;
+  document.getElementById("pegarDatosBox-"+context).style.display = "none";
+  document.getElementById("pegarDatosText-"+context).value = "";
+  if(context === "pedido") buscarClientePorDni();
+  if(context === "cliente") checkDniDuplicado();
+}
 function checkDniDuplicado(){
   const editId = document.getElementById("cEditId").value;
   const dni = document.getElementById("cDni").value.trim();
@@ -1035,7 +1092,7 @@ function checkDniDuplicado(){
   if(!dni){ hint.classList.remove("show"); return; }
   const dup = db.clients.find(c=>c.dni===dni && c.id!==editId);
   if(dup){
-    hint.textContent = `⚠ Ese DNI ya pertenece a ${dup.apellido}, ${dup.nombre} (N° ${dup.numero}). No se puede duplicar.`;
+    hint.textContent = `⚠ Ese DNI ya pertenece a ${dup.apellido}, ${dup.nombre} (${clienteCodigo(dup.numero)}). No se puede duplicar.`;
     hint.classList.add("show","warn");
   } else {
     hint.classList.remove("show","warn");
@@ -1057,7 +1114,7 @@ function saveCliente(){
   // evitar DNI duplicado en otro cliente
   const dup = db.clients.find(c=>c.dni===dni && c.id!==id);
   if(dup){
-    alert(`Ese DNI ya pertenece a otro cliente: ${dup.apellido}, ${dup.nombre} (N° ${dup.numero}).`);
+    alert(`Ese DNI ya pertenece a otro cliente: ${dup.apellido}, ${dup.nombre} (${clienteCodigo(dup.numero)}).`);
     return;
   }
   if(id){
@@ -1068,6 +1125,14 @@ function saveCliente(){
     db.clients.push({ id:"c"+Date.now(), numero: nextNum, dni, apellido, nombre, whatsapp, domicilio, mail });
   }
   saveLocal(); closeClienteModal(); renderClientes(); autoSyncIfConnected();
+}
+function renumerarClientes(){
+  if(db.clients.length===0){ alert("No hay clientes cargados todavía."); return; }
+  if(!confirm(`Se van a renumerar los ${db.clients.length} clientes actuales, en el mismo orden en que están, empezando en ${clienteCodigo(1)}. ¿Continuar?`)) return;
+  const ordenados = db.clients.slice().sort((a,b)=> (a.numero||0) - (b.numero||0));
+  ordenados.forEach((c, idx)=>{ c.numero = idx + 1; });
+  saveLocal(); renderClientes(); autoSyncIfConnected();
+  alert(`Listo. Ahora van de ${clienteCodigo(1)} a ${clienteCodigo(db.clients.length)}.`);
 }
 function deleteCliente(id){
   const enUso = db.rentals.some(r=>r.clienteId===id);
@@ -1123,7 +1188,7 @@ function render(){
       <div class="rental ${estado}">
         <div class="row1">
           <div>
-            <div class="cliente">${escapeHtml(cli.apellido||"")}, ${escapeHtml(cli.nombre||"")} <span class="clienteN">N° ${cli.numero||"-"}</span></div>
+            <div class="cliente">${escapeHtml(cli.apellido||"")}, ${escapeHtml(cli.nombre||"")} <span class="clienteN">${clienteCodigo(cli.numero)}</span></div>
             <div class="equipo">${escapeHtml(productosTxt)}</div>
           </div>
           <span class="badge ${estado}">${badgeTxt}</span>
@@ -1218,7 +1283,7 @@ function buscarClientePorDni(){
     document.getElementById("fWhatsapp").value = cli.whatsapp;
     document.getElementById("fDomicilio").value = cli.domicilio;
     document.getElementById("fMail").value = cli.mail||"";
-    hint.textContent = `Cliente existente N° ${cli.numero}: se completaron sus datos automáticamente.`;
+    hint.textContent = `Cliente existente ${clienteCodigo(cli.numero)}: se completaron sus datos automáticamente.`;
     hint.classList.add("show");
   } else {
     hint.classList.remove("show");
@@ -1799,7 +1864,7 @@ function renderCalendario(){
       const tel = (cli.whatsapp||"").replace(/\D/g,"");
       return `
       <div class="day-item">
-        <div class="dcliente">${escapeHtml(cli.apellido||"")}, ${escapeHtml(cli.nombre||"")} <span style="color:var(--gray);font-weight:400;">N° ${cli.numero||"-"}</span></div>
+        <div class="dcliente">${escapeHtml(cli.apellido||"")}, ${escapeHtml(cli.nombre||"")} <span style="color:var(--gray);font-weight:400;">${clienteCodigo(cli.numero)}</span></div>
         <div class="dprod">${escapeHtml(productosTxt)}</div>
         <div class="ddom">📍 ${escapeHtml(cli.domicilio||"-")}</div>
         <div class="dbtns">
