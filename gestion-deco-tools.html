@@ -267,8 +267,8 @@
 
   <nav class="sidebar-filters" id="filterSidebar">
     <div class="sf-title">Filtro</div>
-    <div class="filter-side-btn active" data-f="todos" onclick="setFilter('todos')">Todos</div>
-    <div class="filter-side-btn" data-f="activo" onclick="setFilter('activo')">Activos</div>
+    <div class="filter-side-btn" data-f="todos" onclick="setFilter('todos')">Todos</div>
+    <div class="filter-side-btn active" data-f="activo" onclick="setFilter('activo')">Activos</div>
     <div class="filter-side-btn" data-f="atrasado" onclick="setFilter('atrasado')">Atrasados</div>
     <div class="filter-side-btn" data-f="devuelto" onclick="setFilter('devuelto')">Devueltos</div>
   </nav>
@@ -1036,7 +1036,7 @@ const STORAGE_KEY = "deco_tools_gestion_v1";
 const DRIVE_HINT_KEY = "deco_tools_gestion_drive_hint";
 
 let db = { products: [], clients: [], rentals: [], priceHistory: [] };
-let currentFilter = "todos";
+let currentFilter = "activo";
 let currentTab = "alquileres";
 let tokenClient = null;
 let accessToken = null;
