@@ -1703,7 +1703,7 @@ function render(){
         ${r.firmado ? `<div class="meta"><span class="firmado-tag">✍️ Firmado el ${fmtFecha(r.firmaFecha)}</span></div>` : ""}
         <div class="btns">
           ${cli.mapsUrl ? `<a class="rbtn maps" href="${escapeHtml(cli.mapsUrl)}" target="_blank" rel="noopener">📍 Ubicación</a>` : ""}
-          ${!r.firmado ? `<button class="mini-btn devolver" onclick="openFirmaModal('${r.id}')">✍️ Confirmar entrega</button>` : `<button class="mini-btn editar" onclick="emitirActa('${r.id}')">📄 Ver acta</button>`}
+          ${!r.firmado ? `<button class="mini-btn devolver" onclick="openFirmaModal('${r.id}')">✍️ Confirmar entrega</button>` : `<button class="mini-btn editar" onclick="emitirActa('${r.id}')">💬 Compartir acta</button><button class="mini-btn editar" onclick="descargarActaGuardada('${r.id}')">⬇️ Descargar acta</button>`}
           ${!r.devuelto ? `<button class="mini-btn devolver" onclick="marcarDevuelto('${r.id}')">✓ Marcar devuelto</button>` : ""}
           <button class="mini-btn editar" onclick="editRental('${r.id}')">Editar</button>
           <button class="mini-btn borrar" onclick="deleteRental('${r.id}')">Borrar</button>
