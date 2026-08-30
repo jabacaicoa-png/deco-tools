@@ -90,6 +90,7 @@
   .rbtn{border:none; border-radius:6px; padding:6px 10px; font-size:11px; font-weight:600; cursor:pointer; text-decoration:none; display:inline-block;}
   .rbtn.call{background:var(--navy); color:#fff;}
   .rbtn.wa{background:#25D366; color:#fff;}
+  .rbtn.maps{background:#4285F4; color:#fff;}
 
   /* Precios tab */
   .section-title{font-size:15px; font-weight:700; color:var(--navy); margin:18px 0 10px; display:flex; justify-content:space-between; align-items:center;}
@@ -396,6 +397,10 @@
           <label>Email</label>
           <input type="email" id="fMail" placeholder="Opcional">
         </div>
+        <div class="field">
+          <label>Ubicación (Google Maps)</label>
+          <input type="url" id="fMaps" placeholder="Pegá el link que te compartió por Maps">
+        </div>
       </div>
 
       <!-- PASO 2: PRODUCTOS -->
@@ -544,6 +549,10 @@
     <div class="field">
       <label>Email</label>
       <input type="email" id="cMail" placeholder="Opcional">
+    </div>
+    <div class="field">
+      <label>Ubicación (Google Maps)</label>
+      <input type="url" id="cMaps" placeholder="Pegá el link que te compartió por Maps">
     </div>
     <div class="modal-btns">
       <button class="btn btn-outline" onclick="closeClienteModal()">Cancelar</button>
@@ -980,6 +989,7 @@ function renderClientes(){
       <div class="btns">
         ${tel ? `<a class="rbtn call" href="tel:${tel}">📞 Llamar</a>` : ""}
         ${tel ? `<a class="rbtn wa" href="https://wa.me/${tel}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ""}
+        ${c.mapsUrl ? `<a class="rbtn maps" href="${escapeHtml(c.mapsUrl)}" target="_blank" rel="noopener">📍 Ubicación</a>` : ""}
         <button class="mini-btn editar" onclick="openHistorialModal('${c.id}')">📜 Historial</button>
         <button class="mini-btn editar" onclick="openClienteModal('${c.id}')">Editar</button>
         <button class="mini-btn ${c.suspendido ? 'devolver' : 'borrar'}" onclick="toggleSuspenderCliente('${c.id}')">${c.suspendido ? '✓ Reactivar' : '⏸ Suspender'}</button>
@@ -1040,9 +1050,10 @@ function openClienteModal(id){
     document.getElementById("cNombre").value = c.nombre||"";
     document.getElementById("cDomicilio").value = c.domicilio||"";
     document.getElementById("cMail").value = c.mail||"";
+    document.getElementById("cMaps").value = c.mapsUrl||"";
   } else {
     document.getElementById("clienteModalTitle").textContent = "Nuevo cliente";
-    ["cDni","cWhatsapp","cApellido","cNombre","cDomicilio","cMail"].forEach(id=>document.getElementById(id).value="");
+    ["cDni","cWhatsapp","cApellido","cNombre","cDomicilio","cMail","cMaps"].forEach(id=>document.getElementById(id).value="");
   }
   document.getElementById("clienteModalBg").classList.add("open");
 }
@@ -1063,6 +1074,7 @@ function parseDatosCliente(texto){
     domicilio: extraer(/domicilio\s*:\s*(.+)/i),
     whatsapp: extraer(/whatsapp\s*:\s*(.+)/i),
     mail: extraer(/(?:email|mail|correo)\s*:\s*(.+)/i),
+    mapsUrl: extraer(/(?:ubicaci[oó]n|maps|google\s*maps)\s*:\s*(.+)/i),
   };
 }
 function autocompletarDesdeTexto(context){
@@ -1080,6 +1092,7 @@ function autocompletarDesdeTexto(context){
   if(d.domicilio) document.getElementById(prefix+"Domicilio").value = d.domicilio.toUpperCase();
   if(d.whatsapp) document.getElementById(prefix+"Whatsapp").value = d.whatsapp;
   if(d.mail) document.getElementById(prefix+"Mail").value = d.mail;
+  if(d.mapsUrl) document.getElementById(prefix+"Maps").value = d.mapsUrl;
   document.getElementById("pegarDatosBox-"+context).style.display = "none";
   document.getElementById("pegarDatosText-"+context).value = "";
   if(context === "pedido") buscarClientePorDni();
@@ -1107,6 +1120,7 @@ function saveCliente(){
   const nombre = document.getElementById("cNombre").value.trim().toUpperCase();
   const domicilio = document.getElementById("cDomicilio").value.trim().toUpperCase();
   const mail = document.getElementById("cMail").value.trim();
+  const mapsUrl = document.getElementById("cMaps").value.trim();
   if(!dni || !whatsapp || !apellido || !nombre || !domicilio){
     alert("Completá DNI, WhatsApp, Apellido, Nombre y Domicilio: son obligatorios.");
     return;
@@ -1119,10 +1133,10 @@ function saveCliente(){
   }
   if(id){
     const c = db.clients.find(x=>x.id===id);
-    c.dni=dni; c.whatsapp=whatsapp; c.apellido=apellido; c.nombre=nombre; c.domicilio=domicilio; c.mail=mail;
+    c.dni=dni; c.whatsapp=whatsapp; c.apellido=apellido; c.nombre=nombre; c.domicilio=domicilio; c.mail=mail; c.mapsUrl=mapsUrl;
   } else {
     const nextNum = db.clients.length ? Math.max(...db.clients.map(c=>c.numero)) + 1 : 1;
-    db.clients.push({ id:"c"+Date.now(), numero: nextNum, dni, apellido, nombre, whatsapp, domicilio, mail });
+    db.clients.push({ id:"c"+Date.now(), numero: nextNum, dni, apellido, nombre, whatsapp, domicilio, mail, mapsUrl });
   }
   saveLocal(); closeClienteModal(); renderClientes(); autoSyncIfConnected();
 }
@@ -1204,6 +1218,7 @@ function render(){
         ${r.fObs ? `<div class="meta"><span>${escapeHtml(r.fObs)}</span></div>` : ""}
         ${r.firmado ? `<div class="meta"><span class="firmado-tag">✍️ Firmado el ${fmtFecha(r.firmaFecha)}</span></div>` : ""}
         <div class="btns">
+          ${cli.mapsUrl ? `<a class="rbtn maps" href="${escapeHtml(cli.mapsUrl)}" target="_blank" rel="noopener">📍 Ubicación</a>` : ""}
           ${!r.firmado ? `<button class="mini-btn devolver" onclick="openFirmaModal('${r.id}')">✍️ Confirmar entrega</button>` : `<button class="mini-btn editar" onclick="emitirActa('${r.id}')">📄 Ver acta</button>`}
           ${!r.devuelto ? `<button class="mini-btn devolver" onclick="marcarDevuelto('${r.id}')">✓ Marcar devuelto</button>` : ""}
           <button class="mini-btn editar" onclick="editRental('${r.id}')">Editar</button>
@@ -1283,6 +1298,7 @@ function buscarClientePorDni(){
     document.getElementById("fWhatsapp").value = cli.whatsapp;
     document.getElementById("fDomicilio").value = cli.domicilio;
     document.getElementById("fMail").value = cli.mail||"";
+    document.getElementById("fMaps").value = cli.mapsUrl||"";
     hint.textContent = `Cliente existente ${clienteCodigo(cli.numero)}: se completaron sus datos automáticamente.`;
     hint.classList.add("show");
   } else {
@@ -1292,7 +1308,7 @@ function buscarClientePorDni(){
 function openNewModal(){
   document.getElementById("modalTitle").textContent = "Nuevo pedido";
   document.getElementById("editId").value = "";
-  ["fDni","fWhatsapp","fApellido","fNombre","fDomicilio","fMail","fObs"].forEach(id=>document.getElementById(id).value="");
+  ["fDni","fWhatsapp","fApellido","fNombre","fDomicilio","fMail","fMaps","fObs"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("fPrecio").value = "";
   document.getElementById("fPrecio").dataset.touched = "";
   document.getElementById("fDeposito").value = "";
@@ -1317,6 +1333,7 @@ function editRental(id){
   document.getElementById("fNombre").value = cli.nombre||"";
   document.getElementById("fDomicilio").value = cli.domicilio||"";
   document.getElementById("fMail").value = cli.mail||"";
+  document.getElementById("fMaps").value = cli.mapsUrl||"";
   document.getElementById("clienteHint").classList.remove("show");
   clienteEncontradoId = cli.id||null;
   document.getElementById("fEntrega").value = r.fEntrega||"";
@@ -1401,6 +1418,7 @@ function saveRental(){
   const nombre = document.getElementById("fNombre").value.trim().toUpperCase();
   const domicilio = document.getElementById("fDomicilio").value.trim().toUpperCase();
   const mail = document.getElementById("fMail").value.trim();
+  const mapsUrl = document.getElementById("fMaps").value.trim();
   if(!dni || !whatsapp || !apellido || !nombre || !domicilio){
     alert("Completá DNI, WhatsApp, Apellido, Nombre y Domicilio: son obligatorios.");
     return;
@@ -1422,10 +1440,10 @@ function saveRental(){
   let cliente = db.clients.find(c=>c.dni===dni);
   if(cliente){
     cliente.apellido = apellido; cliente.nombre = nombre;
-    cliente.whatsapp = whatsapp; cliente.domicilio = domicilio; cliente.mail = mail;
+    cliente.whatsapp = whatsapp; cliente.domicilio = domicilio; cliente.mail = mail; cliente.mapsUrl = mapsUrl;
   } else {
     const nextNum = db.clients.length ? Math.max(...db.clients.map(c=>c.numero)) + 1 : 1;
-    cliente = { id:"c"+Date.now(), numero: nextNum, dni, apellido, nombre, whatsapp, domicilio, mail };
+    cliente = { id:"c"+Date.now(), numero: nextNum, dni, apellido, nombre, whatsapp, domicilio, mail, mapsUrl };
     db.clients.push(cliente);
   }
 
@@ -1870,6 +1888,7 @@ function renderCalendario(){
         <div class="dbtns">
           ${tel ? `<a class="rbtn call" href="tel:${tel}">📞 Llamar</a>` : ""}
           ${tel ? `<a class="rbtn wa" href="https://wa.me/${tel}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ""}
+          ${cli.mapsUrl ? `<a class="rbtn maps" href="${escapeHtml(cli.mapsUrl)}" target="_blank" rel="noopener">📍 Ubicación</a>` : ""}
         </div>
       </div>`;
     }
