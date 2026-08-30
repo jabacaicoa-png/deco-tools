@@ -208,6 +208,16 @@
   .modal-btns{display:flex; gap:10px; margin-top:16px;} .modal-btns .btn{flex:1;}
   .close-x{position:absolute; top:14px; right:16px; background:none; border:none; font-size:20px; color:var(--gray); cursor:pointer;}
   .cliente-hint{font-size:11px; color:var(--green); margin-top:-8px; margin-bottom:10px; display:none;}
+  .buscar-resultados{max-height:220px; overflow-y:auto; margin-top:6px;}
+  .buscar-resultado-item{
+    background:#fff; border:1px solid #e5e4e1; border-radius:8px; padding:9px 11px;
+    margin-bottom:6px; cursor:pointer; font-size:12.5px;
+  }
+  .buscar-resultado-item:active{background:#F2F1EF;}
+  .buscar-resultado-item .bnombre{font-weight:700; color:var(--navy);}
+  .buscar-resultado-item .bcodigo{font-family:monospace; color:var(--orange); font-weight:700; font-size:11px; margin-left:4px;}
+  .buscar-resultado-item .bdetalle{color:var(--gray); font-size:11.5px; margin-top:1px;}
+  .buscar-sin-resultados{font-size:12px; color:var(--gray); padding:8px 2px;}
   .cliente-hint.show{display:block;}
   .cliente-hint.warn{color:var(--red); font-weight:600;}
 
@@ -363,6 +373,11 @@
     <div class="wizard-body" id="wizardBody">
       <!-- PASO 1: CLIENTE -->
       <div class="wizard-step" data-step="1">
+        <button class="btn btn-outline btn-block" style="margin-bottom:8px;" onclick="toggleBuscarCliente()">🔍 Buscar cliente existente</button>
+        <div id="buscarClienteBox" style="display:none; margin-bottom:12px;">
+          <input type="text" id="buscarClienteInput" placeholder="Nombre, DNI, domicilio o código (CL00101)..." oninput="renderResultadosBusquedaCliente()" style="width:100%; padding:9px 10px; border-radius:7px; border:1px solid #d8d7d4; font-size:14px; font-family:inherit;">
+          <div id="resultadosBusquedaCliente"></div>
+        </div>
         <button class="btn btn-outline btn-block" style="margin-bottom:12px;" onclick="togglePegarDatos('pedido')">📋 Pegar datos de WhatsApp</button>
         <div id="pegarDatosBox-pedido" style="display:none; margin-bottom:14px;">
           <textarea id="pegarDatosText-pedido" rows="5" placeholder="Pegá acá el mensaje que te mandó el cliente por WhatsApp..." style="width:100%; padding:9px 10px; border-radius:7px; border:1px solid #d8d7d4; font-size:13px; font-family:inherit;"></textarea>
@@ -1284,6 +1299,53 @@ function actualizarPrecioSugerido(){
   if(!document.getElementById("fPrecio").dataset.touched){
     document.getElementById("fPrecio").value = total || "";
   }
+}
+/* ============ BUSCAR CLIENTE EXISTENTE (nombre/DNI/domicilio/código) ============ */
+function toggleBuscarCliente(){
+  const box = document.getElementById("buscarClienteBox");
+  const abrir = box.style.display === "none";
+  box.style.display = abrir ? "block" : "none";
+  if(abrir){
+    document.getElementById("buscarClienteInput").value = "";
+    document.getElementById("resultadosBusquedaCliente").innerHTML = "";
+    setTimeout(()=>document.getElementById("buscarClienteInput").focus(), 50);
+  }
+}
+function renderResultadosBusquedaCliente(){
+  const q = document.getElementById("buscarClienteInput").value.trim().toLowerCase();
+  const cont = document.getElementById("resultadosBusquedaCliente");
+  if(!q){ cont.innerHTML = ""; return; }
+  const resultados = db.clients.filter(c=>{
+    const hay = `${c.apellido||""} ${c.nombre||""} ${c.dni||""} ${c.domicilio||""} ${clienteCodigo(c.numero)}`.toLowerCase();
+    return hay.includes(q);
+  }).slice(0, 8);
+  if(resultados.length===0){
+    cont.innerHTML = '<div class="buscar-sin-resultados">Sin coincidencias.</div>';
+    return;
+  }
+  cont.innerHTML = `<div class="buscar-resultados">` + resultados.map(c=>`
+    <div class="buscar-resultado-item" onclick="seleccionarClienteBuscado('${c.id}')">
+      <span class="bnombre">${escapeHtml(c.apellido||"")}, ${escapeHtml(c.nombre||"")}</span>
+      <span class="bcodigo">${clienteCodigo(c.numero)}</span>
+      <div class="bdetalle">DNI ${escapeHtml(c.dni||"-")} · ${escapeHtml(c.domicilio||"-")}</div>
+    </div>
+  `).join("") + `</div>`;
+}
+function seleccionarClienteBuscado(id){
+  const cli = db.clients.find(c=>c.id===id);
+  if(!cli) return;
+  clienteEncontradoId = cli.id;
+  document.getElementById("fDni").value = cli.dni||"";
+  document.getElementById("fApellido").value = cli.apellido||"";
+  document.getElementById("fNombre").value = cli.nombre||"";
+  document.getElementById("fWhatsapp").value = cli.whatsapp||"";
+  document.getElementById("fDomicilio").value = cli.domicilio||"";
+  document.getElementById("fMail").value = cli.mail||"";
+  document.getElementById("fMaps").value = cli.mapsUrl||"";
+  const hint = document.getElementById("clienteHint");
+  hint.textContent = `Cliente existente ${clienteCodigo(cli.numero)}: se completaron sus datos automáticamente.`;
+  hint.classList.add("show");
+  document.getElementById("buscarClienteBox").style.display = "none";
 }
 function buscarClientePorDni(){
   const dni = document.getElementById("fDni").value.trim();
