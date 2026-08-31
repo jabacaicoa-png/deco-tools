@@ -72,12 +72,14 @@
 
   .rental{background:#fff; border-radius:10px; padding:12px 14px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,.08); border-left:5px solid var(--navy);}
   .rental.atrasado{border-left-color:var(--red);} .rental.devuelto{border-left-color:var(--green); opacity:.75;}
+  .rental.cancelado{border-left-color:#999; opacity:.6;}
   .rental .row1{display:flex; justify-content:space-between; align-items:flex-start;}
   .rental .cliente{font-weight:700; font-size:15px; color:var(--navy);}
   .rental .clienteN{font-size:11px; color:var(--gray); font-weight:400;}
   .rental .equipo{font-size:13px; color:#333; margin-top:2px;}
   .badge{font-size:10px; font-weight:700; padding:3px 8px; border-radius:12px; color:#fff; white-space:nowrap; margin-left:6px;}
   .badge.activo{background:var(--navy);} .badge.atrasado{background:var(--red);} .badge.devuelto{background:var(--green);}
+  .badge.cancelado{background:#8a8a8a;}
   .rental .meta{font-size:12px; color:var(--gray); margin-top:8px; display:flex; flex-wrap:wrap; gap:10px;}
   .rental .meta b{color:#333;}
   .rental .btns{display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;}
@@ -271,6 +273,7 @@
     <div class="filter-side-btn active" data-f="activo" onclick="setFilter('activo')">Activos</div>
     <div class="filter-side-btn" data-f="atrasado" onclick="setFilter('atrasado')">Atrasados</div>
     <div class="filter-side-btn" data-f="devuelto" onclick="setFilter('devuelto')">Devueltos</div>
+    <div class="filter-side-btn" data-f="cancelado" onclick="setFilter('cancelado')">Cancelados</div>
   </nav>
 
   <nav class="sidebar-filters hidden" id="precioActionsSidebar">
@@ -1150,6 +1153,7 @@ function clienteCodigo(numero){
   return "CL" + String(100 + Number(numero)).padStart(5,"0");
 }
 function estadoDe(r){
+  if(r.cancelado) return "cancelado";
   if(r.devuelto) return "devuelto";
   if(r.fDevolucionPactada && r.fDevolucionPactada < todayStr()) return "atrasado";
   return "activo";
@@ -1158,7 +1162,7 @@ function productoNombre(id){ const p = db.products.find(x=>x.id===id); return p?
 function disponible(productId, excludeRentalId){
   const prod = db.products.find(p=>p.id===productId);
   if(!prod) return 0;
-  const reservado = db.rentals.filter(r=>!r.devuelto && r.id!==excludeRentalId)
+  const reservado = db.rentals.filter(r=>!r.devuelto && !r.cancelado && r.id!==excludeRentalId)
     .reduce((sum,r)=>{
       const item = r.items.find(i=>i.productId===productId);
       return sum + (item? item.cantidad : 0);
@@ -1172,7 +1176,7 @@ function renderCaja(){
   const thisMonth = todayStr().slice(0,7);
   let totalHist = 0, totalMes = 0, depositos = 0;
   const movimientos = db.rentals
-    .filter(r=>r.fEntrega)
+    .filter(r=>r.fEntrega && !r.cancelado)
     .map(r=>{
       const cli = db.clients.find(c=>c.id===r.clienteId) || {};
       const monto = Number(r.fPrecio)||0;
@@ -1182,7 +1186,7 @@ function renderCaja(){
     })
     .sort((a,b)=> b.fecha.localeCompare(a.fecha));
 
-  db.rentals.filter(r=>!r.devuelto).forEach(r=>{ depositos += Number(r.fDeposito)||0; });
+  db.rentals.filter(r=>!r.devuelto && !r.cancelado).forEach(r=>{ depositos += Number(r.fDeposito)||0; });
 
   document.getElementById("cajaMes").textContent = fmtMoney(totalMes);
   document.getElementById("cajaTotal").textContent = fmtMoney(totalHist);
@@ -1498,7 +1502,7 @@ function openHistorialModal(clienteId){
   } else {
     list.innerHTML = rentals.map(r=>{
       const estado = estadoDe(r);
-      const badgeTxt = estado==="activo" ? "Activo" : estado==="atrasado" ? "Atrasado" : "Devuelto";
+      const badgeTxt = estado==="activo" ? "Activo" : estado==="atrasado" ? "Atrasado" : estado==="cancelado" ? "Cancelado" : "Devuelto";
       const productosTxt = r.items.map(i=>`${productoNombre(i.productId)} x${i.cantidad}`).join(", ");
       return `
       <div class="rental ${estado}">
@@ -1679,7 +1683,7 @@ function render(){
   } else {
     list.innerHTML = filtered.map(r=>{
       const estado = estadoDe(r);
-      const badgeTxt = estado==="activo" ? "Activo" : estado==="atrasado" ? "Atrasado" : "Devuelto";
+      const badgeTxt = estado==="activo" ? "Activo" : estado==="atrasado" ? "Atrasado" : estado==="cancelado" ? "Cancelado" : "Devuelto";
       const cli = db.clients.find(c=>c.id===r.clienteId) || {};
       const productosTxt = r.items.map(i=> `${productoNombre(i.productId)} x${i.cantidad}`).join(", ");
       return `
@@ -1700,11 +1704,14 @@ function render(){
           <span><b>WhatsApp:</b> ${escapeHtml(cli.whatsapp||"-")}</span>
         </div>
         ${r.fObs ? `<div class="meta"><span>${escapeHtml(r.fObs)}</span></div>` : ""}
+        ${r.cancelado ? `<div class="meta"><span style="color:#8a8a8a;">❌ Cancelado el ${fmtFecha(r.fCancelacion)}${r.motivoCancelacion ? ` · ${escapeHtml(r.motivoCancelacion)}` : ""}</span></div>` : ""}
         ${r.firmado ? `<div class="meta"><span class="firmado-tag">✍️ Firmado el ${fmtFecha(r.firmaFecha)}</span></div>` : ""}
         <div class="btns">
           ${cli.mapsUrl ? `<a class="rbtn maps" href="${escapeHtml(cli.mapsUrl)}" target="_blank" rel="noopener">📍 Ubicación</a>` : ""}
-          ${!r.firmado ? `<button class="mini-btn devolver" onclick="openFirmaModal('${r.id}')">✍️ Confirmar entrega</button>` : `<button class="mini-btn editar" onclick="emitirActa('${r.id}')">💬 Compartir acta</button><button class="mini-btn editar" onclick="descargarActaGuardada('${r.id}')">⬇️ Descargar acta</button>`}
-          ${!r.devuelto ? `<button class="mini-btn devolver" onclick="marcarDevuelto('${r.id}')">✓ Marcar devuelto</button>` : ""}
+          ${!r.cancelado && !r.firmado ? `<button class="mini-btn devolver" onclick="openFirmaModal('${r.id}')">✍️ Confirmar entrega</button>` : ""}
+          ${r.firmado ? `<button class="mini-btn editar" onclick="emitirActa('${r.id}')">💬 Compartir acta</button><button class="mini-btn editar" onclick="descargarActaGuardada('${r.id}')">⬇️ Descargar acta</button>` : ""}
+          ${!r.cancelado && !r.devuelto ? `<button class="mini-btn devolver" onclick="marcarDevuelto('${r.id}')">✓ Marcar devuelto</button>` : ""}
+          ${!r.cancelado && !r.devuelto ? `<button class="mini-btn borrar" onclick="cancelarPedido('${r.id}')">❌ Cancelar pedido</button>` : ""}
           <button class="mini-btn editar" onclick="editRental('${r.id}')">Editar</button>
           <button class="mini-btn borrar" onclick="deleteRental('${r.id}')">Borrar</button>
         </div>
@@ -1714,7 +1721,7 @@ function render(){
   document.getElementById("statActivos").textContent = db.rentals.filter(r=>estadoDe(r)==="activo").length;
   document.getElementById("statAtrasados").textContent = db.rentals.filter(r=>estadoDe(r)==="atrasado").length;
   const thisMonth = todayStr().slice(0,7);
-  document.getElementById("statMes").textContent = db.rentals.filter(r=> (r.fEntrega||"").slice(0,7)===thisMonth).length;
+  document.getElementById("statMes").textContent = db.rentals.filter(r=> !r.cancelado && (r.fEntrega||"").slice(0,7)===thisMonth).length;
 }
 
 function setFilter(f){
@@ -2000,6 +2007,16 @@ function marcarDevuelto(id){
   const r = db.rentals.find(x=>x.id===id);
   if(!r) return;
   r.devuelto = true; r.fDevolucionReal = todayStr();
+  saveLocal(); render(); autoSyncIfConnected();
+}
+function cancelarPedido(id){
+  const r = db.rentals.find(x=>x.id===id);
+  if(!r) return;
+  if(!confirm("¿Cancelar este pedido? No se va a contar como ingreso ni va a ocupar stock, pero queda el registro de que se canceló.")) return;
+  const motivo = prompt("Motivo de la cancelación (opcional):", "") || "";
+  r.cancelado = true;
+  r.fCancelacion = todayStr();
+  r.motivoCancelacion = motivo.trim();
   saveLocal(); render(); autoSyncIfConnected();
 }
 function deleteRental(id){
@@ -2367,6 +2384,7 @@ function renderCalendario(){
 
   const events = {};
   db.rentals.forEach(r=>{
+    if(r.cancelado) return;
     if(r.fEntrega){
       events[r.fEntrega] = events[r.fEntrega] || {entregas:0, devoluciones:0, items:[]};
       const cant = r.items.reduce((s,i)=>s+i.cantidad,0);
