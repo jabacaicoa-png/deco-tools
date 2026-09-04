@@ -282,6 +282,7 @@
     <div class="filter-side-btn" onclick="openReglaModal()">📐 Regla de tramos</div>
     <div class="filter-side-btn" onclick="openProductModal(null)">+ Nuevo producto</div>
     <div class="filter-side-btn" onclick="restablecerTodoOriginal()">↺ Restablecer todo</div>
+    <div class="filter-side-btn" onclick="compartirTarifas()">📲 Compartir tarifas</div>
     <div class="filter-side-btn" onclick="document.getElementById('excelFileInput').click()">📥 Importar Excel</div>
     <div class="filter-side-btn" onclick="descargarPlantillaExcel()">📤 Descargar plantilla</div>
     <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarExcel(this.files[0])">
@@ -1383,6 +1384,84 @@ function dataUriToBlob(datauri){
   const u8arr = new Uint8Array(n);
   while(n--){ u8arr[n] = bstr.charCodeAt(n); }
   return new Blob([u8arr], { type: mime });
+}
+
+/* ============ COMPARTIR TARIFAS (siempre con los precios actuales) ============ */
+function generarTarifasPDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:"mm", format:"a4" });
+  const M = 18;
+  let y = 20;
+
+  doc.setFont("helvetica","bold"); doc.setFontSize(20); doc.setTextColor(27,58,92);
+  doc.text("DECO-TOOLS", M, y);
+  y += 7;
+  doc.setFontSize(12); doc.setTextColor(232,98,44);
+  doc.text("LISTA DE TARIFAS DE ALQUILER", M, y);
+  y += 9;
+
+  doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(60,60,60);
+  doc.text("Entrega a domicilio · Se abona contra entrega · WhatsApp 1156699104", M, y);
+  y += 10;
+
+  const disponibles = db.products.filter(p=>!p.descontinuado);
+  const TW = 180; // ancho total de la tabla
+  const colX = { c1: M+108, c3: M+131, c5: M+154, c7: M+177 };
+
+  // encabezado tabla
+  doc.setFillColor(27,58,92); doc.rect(M, y, TW, 8, "F");
+  doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(9.5);
+  doc.text("Equipo", M+3, y+5.5);
+  doc.text("1 día", colX.c1, y+5.5, { align:"right" });
+  doc.text("3 días", colX.c3, y+5.5, { align:"right" });
+  doc.text("5 días", colX.c5, y+5.5, { align:"right" });
+  doc.text("7 días", colX.c7, y+5.5, { align:"right" });
+  y += 8;
+
+  doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(30,30,30);
+  disponibles.forEach((p,i)=>{
+    if(i%2===1){ doc.setFillColor(246,246,244); doc.rect(M, y, TW, 8, "F"); }
+    doc.text(String(p.nombre), M+3, y+5.5);
+    doc.text(fmtMoney(p.precio1), colX.c1, y+5.5, { align:"right" });
+    doc.text(fmtMoney(p.precio3), colX.c3, y+5.5, { align:"right" });
+    doc.text(fmtMoney(p.precio5), colX.c5, y+5.5, { align:"right" });
+    doc.text(fmtMoney(p.precio7), colX.c7, y+5.5, { align:"right" });
+    y += 8;
+  });
+  doc.setDrawColor(200,200,200); doc.rect(M, y-8*disponibles.length-8, TW, 8*disponibles.length+8);
+  y += 10;
+
+  doc.setFontSize(8.5); doc.setTextColor(120,120,120);
+  doc.text("Precios sujetos a disponibilidad. Pueden actualizarse sin previo aviso.", M, y);
+  y += 4;
+  doc.text("Lista generada el " + fmtFecha(todayStr()), M, y);
+
+  return doc.output("datauristring");
+}
+async function compartirTarifas(){
+  const disponibles = db.products.filter(p=>!p.descontinuado);
+  if(disponibles.length===0){ alert("No hay productos activos en el catálogo para compartir."); return; }
+  const pdfData = generarTarifasPDF();
+  const blob = dataUriToBlob(pdfData);
+  const file = new File([blob], "Tarifas-DecoTools.pdf", { type:"application/pdf" });
+
+  if(navigator.canShare && navigator.canShare({ files:[file] })){
+    try{
+      await navigator.share({
+        files:[file],
+        title:"Tarifas Deco-Tools",
+        text:"Hola! Te paso la lista de tarifas de alquiler de Deco-Tools.",
+      });
+      return;
+    }catch(err){
+      if(err && err.name === "AbortError") return;
+      console.error("Error al compartir", err);
+    }
+  }
+  const a = document.createElement("a");
+  a.href = pdfData; a.download = "Tarifas-DecoTools.pdf";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  alert("Tu navegador no permite adjuntar el archivo automáticamente. Se descargó el PDF: adjuntalo manualmente donde lo quieras enviar.");
 }
 async function compartirActa(rentalId){
   const r = db.rentals.find(x=>x.id===rentalId);
