@@ -1764,6 +1764,7 @@ function render(){
       const estado = estadoDe(r);
       const badgeTxt = estado==="activo" ? "Activo" : estado==="atrasado" ? "Atrasado" : estado==="cancelado" ? "Cancelado" : "Devuelto";
       const cli = db.clients.find(c=>c.id===r.clienteId) || {};
+      const tel = (cli.whatsapp||"").replace(/\D/g,"");
       const productosTxt = r.items.map(i=> `${productoNombre(i.productId)} x${i.cantidad}`).join(", ");
       return `
       <div class="rental ${estado}">
@@ -1786,6 +1787,8 @@ function render(){
         ${r.cancelado ? `<div class="meta"><span style="color:#8a8a8a;">❌ Cancelado el ${fmtFecha(r.fCancelacion)}${r.motivoCancelacion ? ` · ${escapeHtml(r.motivoCancelacion)}` : ""}</span></div>` : ""}
         ${r.firmado ? `<div class="meta"><span class="firmado-tag">✍️ Firmado el ${fmtFecha(r.firmaFecha)}</span></div>` : ""}
         <div class="btns">
+          ${tel ? `<a class="rbtn call" href="tel:${tel}">📞 Llamar</a>` : ""}
+          ${tel ? `<a class="rbtn wa" href="https://wa.me/${tel}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ""}
           ${cli.mapsUrl ? `<a class="rbtn maps" href="${escapeHtml(cli.mapsUrl)}" target="_blank" rel="noopener">📍 Ubicación</a>` : ""}
           ${!r.cancelado && !r.firmado ? `<button class="mini-btn devolver" onclick="openFirmaModal('${r.id}')">✍️ Confirmar entrega</button>` : ""}
           ${r.firmado ? `<button class="mini-btn editar" onclick="emitirActa('${r.id}')">💬 Compartir acta</button><button class="mini-btn editar" onclick="descargarActaGuardada('${r.id}')">⬇️ Descargar acta</button>` : ""}
